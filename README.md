@@ -94,6 +94,7 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 
 | Ident | Typ | Bedeutung |
 |---|---|---|
+| `Tile` | String (~HTMLBox) | Fertige **Webfront-Kachel** mit Status, Reward-Beträgen und Flex-Geräten |
 | `Delivering` | Boolean | **Primäres Signal** – `true`, solange ein Grid-Reward-Einsatz läuft |
 | `State` | String | `Verfügbar` / `Nicht verfügbar` / `Einsatz aktiv` |
 | `StateReason` | String | Roh-Begründung (`reason` / `kind` / `reasons`) – z. B. zur Richtungsbestimmung |
@@ -102,6 +103,15 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 | `Currency` | String | Währung |
 | `FlexDeviceCount` | Integer | Anzahl der Flex-Geräte |
 | `FlexDevices` | String | Lesbare Liste der Flex-Geräte inkl. Einzelstatus |
+
+## Webfront-Kachel
+
+Das Modul erzeugt zusätzlich die Variable `Tile` (Profil `~HTMLBox`) mit einer fertigen, dunkel
+gestalteten Status-Karte für die Visualisierung: Statusanzeige (bei aktivem Einsatz pulsierend),
+Vergütung des aktuellen Monats und gesamt sowie die Flex-Geräte inkl. Einzelstatus.
+
+Zur Anzeige die Variable `Tile` einfach in die Kachel-Visualisierung bzw. ins Webfront ziehen – sie
+aktualisiert sich automatisch mit dem Status.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 

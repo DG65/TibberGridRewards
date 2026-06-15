@@ -12,4 +12,6 @@
     `RewardAllTime`, `Currency`, `FlexDeviceCount`, `FlexDevices`.
   - Zuhause-Auswahl per Dropdown (dynamisch aus `me { homes }`).
   - Watchdog + Relogin-Sequenz bei Datenausfall.
+  - Webfront-Kachel: Variable `Tile` (`~HTMLBox`) mit Status-Karte (pulsierend bei aktivem
+    Einsatz), Reward-Beträgen und Flex-Geräte-Liste.
 - Alter Platzhalter `GridReward/` entfernt.
