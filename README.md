@@ -106,16 +106,27 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 
 ## Kachel für die Visualisierung
 
-Das Modul erzeugt die Variable `Tile` (Profil `~HTMLBox`) mit einer fertigen, dunkel gestalteten
-Status-Karte: Statusanzeige (bei aktivem Einsatz pulsierend), Vergütung des aktuellen Monats und
-gesamt sowie die Flex-Geräte inkl. Einzelstatus. Sind mehrere Flex-Geräte (z. B. zwei Fahrzeuge)
-registriert, erscheint pro Gerät eine eigene Zeile.
+Es gibt zwei Wege, den Status als Kachel anzuzeigen:
 
-Zur Anzeige in der **Kachel-Visualisierung** einfach die Variable `Tile` der Instanz auf eine
-Visualisierungsseite ziehen – sie aktualisiert sich automatisch mit jedem Status-Update.
+### A) Eigenständiges Kachel-Modul `TibberGridRewardTile` (empfohlen, randlos)
 
-Die Statusfarben (aktiv / verfügbar / nicht verfügbar) lassen sich im Instanzformular unter
-**🎨 Kachel-Farben** per Farbwähler anpassen – ohne Code-Änderung und update-fest.
+Die Bibliothek enthält ein **zweites Modul** `TibberGridRewardTile`. Es ist eine eigenständige
+HTML-SDK-Kachel, die die Tile **randlos** füllt (kein zusätzlicher Innenrahmen) und bewusst von der
+Datenlogik getrennt ist – ein Kachel-Problem kann die Datenverbindung nicht stören.
+
+1. Instanz **TibberGridRewardTile** anlegen.
+2. Im Formular die **Datenquelle** (deine `TibberGridReward`-Instanz) wählen.
+3. Die Instanz-Kachel in der Kachel-Visualisierung auf eine Seite legen.
+
+Eigene Farbwähler unter **🎨 Kachel-Farben**. Aktualisierung erfolgt automatisch bei jeder
+Variablenänderung der Quelle.
+
+### B) `Tile`-Variable der Dateninstanz (einfach, mit Rahmen)
+
+Das Datenmodul erzeugt zusätzlich die Variable `Tile` (Profil `~HTMLBox`) mit derselben Status-Karte.
+Diese Variable einfach in die Kachel-Visualisierung ziehen. Schnell eingerichtet, hat in der
+Tile-Visualisierung aber den üblichen Kachel-Innenrahmen. Die Farben dafür liegen im Datenmodul unter
+**🎨 Kachel-Farben**.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 

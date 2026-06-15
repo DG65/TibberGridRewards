@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.0
+
+- Neues, **eigenständiges Kachel-Modul `TibberGridRewardTile`** in derselben Bibliothek (analog zum
+  Aufbau des Tessie-Moduls mit mehreren Instanzen). Es rendert die **randlose HTML-SDK-Kachel**
+  (`SetVisualizationType(1)` + `GetVisualizationTile()` + `module.html`) und liest die Daten per
+  Instanz-Auswahl aus einer `TibberGridReward`-Instanz.
+- **Bewusst von der Datenlogik getrennt** (Vorbild da8ter): Die Kachel kann die WebSocket-/Daten-
+  verbindung nicht mehr stören. Aktualisierung per `VM_UPDATE`-Nachrichten der Quell-Variablen.
+- Eigene Farbwähler im Kachel-Modul. Das Datenmodul bleibt unverändert; seine `Tile`-Variable
+  (~HTMLBox) existiert weiterhin als Alternative.
+
 ## 1.2.0
 
 - **Rückbau der HTML-SDK-Kachel.** Die Umstellung aus 1.1.0 (`SetVisualizationType`/

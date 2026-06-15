@@ -1,0 +1,48 @@
+{
+  "elements": [
+    {
+      "type": "Label",
+      "caption": "Eigenständige Kachel für die Tibber Grid Rewards. Wähle die TibberGridReward-Instanz als Datenquelle. Die Kachel füllt die Tile randlos und ist von der Datenverbindung getrennt."
+    },
+    {
+      "type": "SelectInstance",
+      "name": "SourceInstance",
+      "caption": "Datenquelle (TibberGridReward-Instanz)",
+      "validModules": ["{E92F62F4-88A6-4C6E-9F0D-E76C3B1C9A01}"]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "🎨 Kachel-Farben",
+      "items": [
+        {
+          "type": "SelectColor",
+          "name": "ColorActive",
+          "caption": "Einsatz aktiv"
+        },
+        {
+          "type": "SelectColor",
+          "name": "ColorAvailable",
+          "caption": "Verfügbar"
+        },
+        {
+          "type": "SelectColor",
+          "name": "ColorUnavailable",
+          "caption": "Nicht verfügbar"
+        }
+      ]
+    }
+  ],
+  "actions": [],
+  "status": [
+    {
+      "code": 102,
+      "icon": "active",
+      "caption": "Aktiv"
+    },
+    {
+      "code": 104,
+      "icon": "inactive",
+      "caption": "Keine Datenquelle gewählt"
+    }
+  ]
+}

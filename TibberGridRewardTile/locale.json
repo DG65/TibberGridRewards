@@ -1,0 +1,12 @@
+{
+  "translations": {
+    "de": {
+      "This month": "Dieser Monat",
+      "Total": "Gesamt",
+      "No flex devices": "Keine Flex-Geräte",
+      "No data yet": "Noch keine Daten",
+      "No source selected": "Keine Datenquelle gewählt",
+      "Available": "Verfügbar"
+    }
+  }
+}
