@@ -408,6 +408,8 @@ class TibberGridReward extends IPSModule
         $this->SetValueIfExists('FlexDeviceCount', count($devices));
         $this->SetValueIfExists('FlexDevices', $this->FormatFlexDevices($devices));
 
+        $this->SetValueIfExists('Tile', $this->BuildTile($stateName, $delivering, $status, $devices));
+
         $this->SendDebug(__FUNCTION__, 'State=' . $stateName . ' Delivering=' . ($delivering ? '1' : '0') . ' Reason=' . $stateReason, 0);
     }
 
@@ -458,6 +460,112 @@ class TibberGridReward extends IPSModule
     }
 
     // ---------------------------------------------------------------------
+    // Webfront-Kachel (HTMLBox)
+    // ---------------------------------------------------------------------
+
+    private function BuildTile(string $stateName, bool $delivering, array $status, array $devices): string
+    {
+        $typename = $status['state']['__typename'] ?? '';
+        switch ($typename) {
+            case 'GridRewardDelivering':
+                $cls = 'live';
+                $accent = '#27d07f';
+                break;
+            case 'GridRewardAvailable':
+                $cls = 'avail';
+                $accent = '#2bb3c0';
+                break;
+            default:
+                $cls = 'off';
+                $accent = '#7a8a99';
+        }
+
+        $cur = $this->CurrencySymbol((string) ($status['rewardCurrency'] ?? ''));
+        $month = $this->FormatMoney((float) ($status['rewardCurrentMonth'] ?? 0), $cur);
+        $total = $this->FormatMoney((float) ($status['rewardAllTime'] ?? 0), $cur);
+
+        $devHtml = '';
+        foreach ($devices as $d) {
+            $dType = ($d['__typename'] ?? '') === 'GridRewardBattery';
+            $dState = $d['state']['__typename'] ?? '';
+            $dColor = $dState === 'GridRewardDelivering' ? '#27d07f' : ($dState === 'GridRewardAvailable' ? '#2bb3c0' : '#7a8a99');
+            $name = htmlspecialchars((string) ($d['shortName'] ?? $d['make'] ?? '?'), ENT_QUOTES);
+            $typeLabel = $dType ? $this->Translate('Battery') : $this->Translate('Vehicle');
+            $meta = $typeLabel;
+            if (!$dType && !empty($d['isPluggedIn'])) {
+                $meta .= ' · ' . $this->Translate('plugged in');
+            }
+            $devHtml .= '<div class="tgr-dev"><span class="tgr-dev-dot" style="background:' . $dColor . '"></span>'
+                . '<span class="tgr-dev-name">' . $name . '</span>'
+                . '<span class="tgr-dev-meta">' . htmlspecialchars($meta, ENT_QUOTES) . '</span></div>';
+        }
+        if ($devHtml === '') {
+            $devHtml = '<div class="tgr-empty">' . $this->Translate('No flex devices') . '</div>';
+        }
+
+        $label = htmlspecialchars($stateName, ENT_QUOTES);
+        $monthLbl = htmlspecialchars($this->Translate('This month'), ENT_QUOTES);
+        $totalLbl = htmlspecialchars($this->Translate('Total'), ENT_QUOTES);
+
+        $css = <<<'CSS'
+<style>
+.tgr-card{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:340px;box-sizing:border-box;background:linear-gradient(160deg,#1d2733,#141b24);border-radius:16px;padding:18px;color:#eaf0f6;box-shadow:0 6px 18px rgba(0,0,0,.35);}
+.tgr-head{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.4px;color:#9fb0c0;text-transform:uppercase;margin-bottom:14px;}
+.tgr-status{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+.tgr-dot{width:14px;height:14px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 6px 1px currentColor;}
+.tgr-status-label{font-size:22px;font-weight:700;line-height:1;}
+.tgr-live .tgr-dot{animation:tgrpulse 1.4s ease-in-out infinite;}
+@keyframes tgrpulse{0%,100%{box-shadow:0 0 4px 0 currentColor;transform:scale(1);}50%{box-shadow:0 0 13px 4px currentColor;transform:scale(1.18);}}
+.tgr-rewards{display:flex;gap:10px;margin-bottom:16px;}
+.tgr-reward{flex:1;background:rgba(255,255,255,.05);border-radius:12px;padding:12px 8px;text-align:center;}
+.tgr-reward-val{font-size:19px;font-weight:700;color:#fff;}
+.tgr-reward-lbl{font-size:10px;color:#9fb0c0;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+.tgr-devices{display:flex;flex-direction:column;gap:7px;}
+.tgr-dev{display:flex;align-items:center;gap:9px;font-size:13px;background:rgba(255,255,255,.04);border-radius:10px;padding:8px 11px;}
+.tgr-dev-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
+.tgr-dev-name{font-weight:600;color:#eaf0f6;}
+.tgr-dev-meta{margin-left:auto;font-size:11px;color:#8a9bab;}
+.tgr-empty{font-size:12px;color:#8a9bab;font-style:italic;}
+</style>
+CSS;
+
+        $icon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="' . $accent . '"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>';
+
+        $html = $css
+            . '<div class="tgr-card tgr-' . $cls . '">'
+            . '<div class="tgr-head">' . $icon . '<span>Tibber Grid Rewards</span></div>'
+            . '<div class="tgr-status"><span class="tgr-dot" style="color:' . $accent . ';background:' . $accent . '"></span>'
+            . '<span class="tgr-status-label" style="color:' . $accent . '">' . $label . '</span></div>'
+            . '<div class="tgr-rewards">'
+            . '<div class="tgr-reward"><div class="tgr-reward-val">' . $month . '</div><div class="tgr-reward-lbl">' . $monthLbl . '</div></div>'
+            . '<div class="tgr-reward"><div class="tgr-reward-val">' . $total . '</div><div class="tgr-reward-lbl">' . $totalLbl . '</div></div>'
+            . '</div>'
+            . '<div class="tgr-devices">' . $devHtml . '</div>'
+            . '</div>';
+
+        return $html;
+    }
+
+    private function FormatMoney(float $value, string $currency): string
+    {
+        return number_format($value, 2, ',', '.') . ' ' . $currency;
+    }
+
+    private function CurrencySymbol(string $code): string
+    {
+        switch (strtoupper($code)) {
+            case 'EUR': return '€';
+            case 'SEK':
+            case 'NOK':
+            case 'DKK': return 'kr';
+            case 'GBP': return '£';
+            case 'USD': return '$';
+            case '': return '€';
+            default: return $code;
+        }
+    }
+
+    // ---------------------------------------------------------------------
     // Variablen & Profile
     // ---------------------------------------------------------------------
 
@@ -474,6 +582,7 @@ class TibberGridReward extends IPSModule
     private function RegisterVariables(): void
     {
         $pos = 0;
+        $this->MaintainVariable('Tile', $this->Translate('Grid Rewards'), VARIABLETYPE_STRING, '~HTMLBox', $pos++, true);
         $this->MaintainVariable('Delivering', $this->Translate('Grid Reward active'), VARIABLETYPE_BOOLEAN, '~Alert', $pos++, true);
         $this->MaintainVariable('State', $this->Translate('Status'), VARIABLETYPE_STRING, '', $pos++, true);
         $this->MaintainVariable('StateReason', $this->Translate('Status detail'), VARIABLETYPE_STRING, '', $pos++, true);

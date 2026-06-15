@@ -2,7 +2,11 @@
   "translations": {
     "de": {
       "Please select": "Bitte wählen",
+      "Grid Rewards": "Grid Rewards",
       "Grid Reward active": "Grid Reward aktiv",
+      "This month": "Dieser Monat",
+      "Total": "Gesamt",
+      "No flex devices": "Keine Flex-Geräte",
       "Status": "Status",
       "Status detail": "Status-Detail",
       "Reward current month": "Reward aktueller Monat",
