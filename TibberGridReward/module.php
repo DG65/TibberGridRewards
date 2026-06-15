@@ -49,7 +49,6 @@ class TibberGridReward extends IPSModule
         $this->RegisterAttributeString('Homes', '');
         $this->RegisterAttributeInteger('Parent_IO', 0);
         $this->RegisterAttributeInteger('WTCounter', 0);
-        $this->RegisterAttributeString('LastStatus', '');
 
         // eindeutige Subscription-ID je Instanz
         $this->RegisterPropertyInteger('SubID', rand(1000, 9999));
@@ -60,9 +59,6 @@ class TibberGridReward extends IPSModule
         $this->RegisterTimer('TokenRefresh', 0, 'TIBBERGR_TokenRefresh($_IPS[\'TARGET\']);');
         $this->RegisterTimer('StartWatchdog', 0, 'TIBBERGR_StartWatchdog($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ReloginSequence', 0, 'TIBBERGR_ReloginSequence($_IPS[\'TARGET\']);');
-
-        // Instanz als HTML-Kachel-Visualisierung anmelden (sonst erscheint keine Kachel)
-        $this->SetVisualizationType(1);
     }
 
     public function Destroy()
@@ -75,10 +71,6 @@ class TibberGridReward extends IPSModule
     {
         //Never delete this line!
         parent::ApplyChanges();
-
-        // Auch hier anmelden, damit bereits bestehende Instanzen die Kachel ohne Neuanlegen bekommen
-        // (Create() läuft bei einem Modul-Update nicht erneut).
-        $this->SetVisualizationType(1);
 
         $this->RegisterProfiles();
 
@@ -115,11 +107,6 @@ class TibberGridReward extends IPSModule
         $this->RegisterMessageParent();
         $this->UpdateConfigurationForParent();
         $this->ScheduleTokenRefresh();
-
-        // Kachel mit zuletzt bekanntem Status sofort aktualisieren (z. B. nach Farbänderung)
-        if ($this->ReadAttributeString('LastStatus') !== '') {
-            $this->UpdateVisualizationValue($this->GetFullUpdateMessage());
-        }
     }
 
     public function GetConfigurationForm()
@@ -426,9 +413,7 @@ class TibberGridReward extends IPSModule
         $this->SetValueIfExists('FlexDeviceCount', count($devices));
         $this->SetValueIfExists('FlexDevices', $this->FormatFlexDevices($devices));
 
-        // letzten Status für die Visualisierung merken und Kachel aktualisieren
-        $this->WriteAttributeString('LastStatus', json_encode($status));
-        $this->UpdateVisualizationValue($this->GetFullUpdateMessage());
+        $this->SetValueIfExists('Tile', $this->BuildTile($stateName, $delivering, $status, $devices));
 
         $this->SendDebug(__FUNCTION__, 'State=' . $stateName . ' Delivering=' . ($delivering ? '1' : '0') . ' Reason=' . $stateReason, 0);
     }
@@ -480,45 +465,15 @@ class TibberGridReward extends IPSModule
     }
 
     // ---------------------------------------------------------------------
-    // Visualisierungs-Kachel (HTML-SDK, randlos)
+    // Webfront-Kachel (HTMLBox)
     // ---------------------------------------------------------------------
 
-    public function GetVisualizationTile()
-    {
-        $module = file_get_contents(__DIR__ . '/module.html');
-        // handleMessage() ist erst im HTML definiert -> initialen Aufruf ans Ende hängen.
-        $module .= '<script>handleMessage(' . json_encode($this->GetFullUpdateMessage()) . ');</script>';
-        return $module;
-    }
-
-    /**
-     * Baut die JSON-Nachricht für die Kachel aus dem zuletzt empfangenen Status.
-     */
-    private function GetFullUpdateMessage(): string
+    private function BuildTile(string $stateName, bool $delivering, array $status, array $devices): string
     {
         $cActive = $this->ColorHex($this->ReadPropertyInteger('ColorActive'), '#27d07f');
         $cAvail = $this->ColorHex($this->ReadPropertyInteger('ColorAvailable'), '#2bb3c0');
         $cUnavail = $this->ColorHex($this->ReadPropertyInteger('ColorUnavailable'), '#7a8a99');
 
-        $raw = $this->ReadAttributeString('LastStatus');
-        $status = $raw !== '' ? json_decode($raw, true) : null;
-
-        if (!is_array($status)) {
-            return json_encode([
-                'stateLabel' => $this->Translate('No data yet'),
-                'cls'        => 'off',
-                'accent'     => $cUnavail,
-                'month'      => '–',
-                'total'      => '–',
-                'monthLabel' => $this->Translate('This month'),
-                'totalLabel' => $this->Translate('Total'),
-                'title'      => 'Tibber Grid Rewards',
-                'emptyLabel' => $this->Translate('No flex devices'),
-                'devices'    => [],
-            ]);
-        }
-
-        [$stateName, , ] = $this->ParseState($status['state'] ?? []);
         $typename = $status['state']['__typename'] ?? '';
         switch ($typename) {
             case 'GridRewardDelivering':
@@ -535,35 +490,69 @@ class TibberGridReward extends IPSModule
         }
 
         $cur = $this->CurrencySymbol((string) ($status['rewardCurrency'] ?? ''));
+        $month = $this->FormatMoney((float) ($status['rewardCurrentMonth'] ?? 0), $cur);
+        $total = $this->FormatMoney((float) ($status['rewardAllTime'] ?? 0), $cur);
 
-        $devices = [];
-        foreach (($status['flexDevices'] ?? []) as $d) {
-            $isBattery = ($d['__typename'] ?? '') === 'GridRewardBattery';
+        $devHtml = '';
+        foreach ($devices as $d) {
+            $dType = ($d['__typename'] ?? '') === 'GridRewardBattery';
             $dState = $d['state']['__typename'] ?? '';
             $dColor = $dState === 'GridRewardDelivering' ? $cActive : ($dState === 'GridRewardAvailable' ? $cAvail : $cUnavail);
-            $meta = $isBattery ? $this->Translate('Battery') : $this->Translate('Vehicle');
-            if (!$isBattery && !empty($d['isPluggedIn'])) {
+            $name = htmlspecialchars((string) ($d['shortName'] ?? $d['make'] ?? '?'), ENT_QUOTES);
+            $typeLabel = $dType ? $this->Translate('Battery') : $this->Translate('Vehicle');
+            $meta = $typeLabel;
+            if (!$dType && !empty($d['isPluggedIn'])) {
                 $meta .= ' · ' . $this->Translate('plugged in');
             }
-            $devices[] = [
-                'name'  => (string) ($d['shortName'] ?? $d['make'] ?? '?'),
-                'meta'  => $meta,
-                'color' => $dColor,
-            ];
+            $devHtml .= '<div class="tgr-dev"><span class="tgr-dev-dot" style="background:' . $dColor . '"></span>'
+                . '<span class="tgr-dev-name">' . $name . '</span>'
+                . '<span class="tgr-dev-meta">' . htmlspecialchars($meta, ENT_QUOTES) . '</span></div>';
+        }
+        if ($devHtml === '') {
+            $devHtml = '<div class="tgr-empty">' . $this->Translate('No flex devices') . '</div>';
         }
 
-        return json_encode([
-            'stateLabel' => $stateName,
-            'cls'        => $cls,
-            'accent'     => $accent,
-            'month'      => $this->FormatMoney((float) ($status['rewardCurrentMonth'] ?? 0), $cur),
-            'total'      => $this->FormatMoney((float) ($status['rewardAllTime'] ?? 0), $cur),
-            'monthLabel' => $this->Translate('This month'),
-            'totalLabel' => $this->Translate('Total'),
-            'title'      => 'Tibber Grid Rewards',
-            'emptyLabel' => $this->Translate('No flex devices'),
-            'devices'    => $devices,
-        ]);
+        $label = htmlspecialchars($stateName, ENT_QUOTES);
+        $monthLbl = htmlspecialchars($this->Translate('This month'), ENT_QUOTES);
+        $totalLbl = htmlspecialchars($this->Translate('Total'), ENT_QUOTES);
+
+        $css = <<<'CSS'
+<style>
+.tgr-card{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:340px;box-sizing:border-box;background:linear-gradient(160deg,#1d2733,#141b24);border-radius:16px;padding:18px;color:#eaf0f6;box-shadow:0 6px 18px rgba(0,0,0,.35);}
+.tgr-head{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.4px;color:#9fb0c0;text-transform:uppercase;margin-bottom:14px;}
+.tgr-status{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+.tgr-dot{width:14px;height:14px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 6px 1px currentColor;}
+.tgr-status-label{font-size:22px;font-weight:700;line-height:1;}
+.tgr-live .tgr-dot{animation:tgrpulse 1.4s ease-in-out infinite;}
+@keyframes tgrpulse{0%,100%{box-shadow:0 0 4px 0 currentColor;transform:scale(1);}50%{box-shadow:0 0 13px 4px currentColor;transform:scale(1.18);}}
+.tgr-rewards{display:flex;gap:10px;margin-bottom:16px;}
+.tgr-reward{flex:1;background:rgba(255,255,255,.05);border-radius:12px;padding:12px 8px;text-align:center;}
+.tgr-reward-val{font-size:19px;font-weight:700;color:#fff;}
+.tgr-reward-lbl{font-size:10px;color:#9fb0c0;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+.tgr-devices{display:flex;flex-direction:column;gap:7px;}
+.tgr-dev{display:flex;align-items:center;gap:9px;font-size:13px;background:rgba(255,255,255,.04);border-radius:10px;padding:8px 11px;}
+.tgr-dev-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
+.tgr-dev-name{font-weight:600;color:#eaf0f6;}
+.tgr-dev-meta{margin-left:auto;font-size:11px;color:#8a9bab;}
+.tgr-empty{font-size:12px;color:#8a9bab;font-style:italic;}
+</style>
+CSS;
+
+        $icon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="' . $accent . '"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>';
+
+        $html = $css
+            . '<div class="tgr-card tgr-' . $cls . '">'
+            . '<div class="tgr-head">' . $icon . '<span>Tibber Grid Rewards</span></div>'
+            . '<div class="tgr-status"><span class="tgr-dot" style="color:' . $accent . ';background:' . $accent . '"></span>'
+            . '<span class="tgr-status-label" style="color:' . $accent . '">' . $label . '</span></div>'
+            . '<div class="tgr-rewards">'
+            . '<div class="tgr-reward"><div class="tgr-reward-val">' . $month . '</div><div class="tgr-reward-lbl">' . $monthLbl . '</div></div>'
+            . '<div class="tgr-reward"><div class="tgr-reward-val">' . $total . '</div><div class="tgr-reward-lbl">' . $totalLbl . '</div></div>'
+            . '</div>'
+            . '<div class="tgr-devices">' . $devHtml . '</div>'
+            . '</div>';
+
+        return $html;
     }
 
     private function ColorHex(int $value, string $fallback): string
@@ -610,8 +599,7 @@ class TibberGridReward extends IPSModule
     private function RegisterVariables(): void
     {
         $pos = 0;
-        // Die Kachel ist jetzt eine HTML-SDK-Visualisierung (GetVisualizationTile), keine HTMLBox-Variable mehr.
-        $this->MaintainVariable('Tile', '', VARIABLETYPE_STRING, '', 0, false);
+        $this->MaintainVariable('Tile', $this->Translate('Grid Rewards'), VARIABLETYPE_STRING, '~HTMLBox', $pos++, true);
         $this->MaintainVariable('Delivering', $this->Translate('Grid Reward active'), VARIABLETYPE_BOOLEAN, '~Alert', $pos++, true);
         $this->MaintainVariable('State', $this->Translate('Status'), VARIABLETYPE_STRING, '', $pos++, true);
         $this->MaintainVariable('StateReason', $this->Translate('Status detail'), VARIABLETYPE_STRING, '', $pos++, true);

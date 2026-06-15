@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- **Rückbau der HTML-SDK-Kachel.** Die Umstellung aus 1.1.0 (`SetVisualizationType`/
+  `GetVisualizationTile`/`module.html`) hat die Instanz instabil gemacht. Daher zurück auf die
+  bewährte, robuste **`Tile`-Variable (`~HTMLBox`)** – die Kachel rendert wieder zuverlässig.
+- `module.html` entfernt; keine Visualisierungs-SDK-Aufrufe mehr im Modul.
+- Farbwähler (`SelectColor`) für die Statusfarben bleiben erhalten.
+
 ## 1.1.0
 
 - Kachel auf **HTML-SDK-Tile-Visualisierung** umgestellt (`GetVisualizationTile()` + `module.html`
