@@ -141,9 +141,27 @@ class TibberGridRewardTile extends IPSModule
         $flexText = (string) $this->ReadSourceValue($src, 'FlexDevices', '');
         foreach (explode("\n", $flexText) as $line) {
             $line = trim($line);
-            if ($line !== '') {
-                $devices[] = ['name' => $line, 'color' => $accent];
+            if ($line === '') {
+                continue;
             }
+            // "Name (Typ) · Status · ..." -> Name + Typ extrahieren
+            $name = $line;
+            $meta = '';
+            if (preg_match('/^(.*?)\s*\(([^)]*)\)/u', $line, $m)) {
+                $name = trim($m[1]);
+                $meta = trim($m[2]);
+            }
+            // Farbpunkt nach Gerätestatus (Unavailable vor Available prüfen – Teilstring!)
+            if (mb_strpos($line, $this->Translate('Delivering')) !== false) {
+                $color = $cActive;
+            } elseif (mb_strpos($line, $this->Translate('Unavailable')) !== false) {
+                $color = $cUnavail;
+            } elseif (mb_strpos($line, $this->Translate('Available')) !== false) {
+                $color = $cAvail;
+            } else {
+                $color = $accent;
+            }
+            $devices[] = ['name' => $name, 'meta' => $meta, 'color' => $color];
         }
 
         return json_encode([

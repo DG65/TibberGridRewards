@@ -24,23 +24,7 @@
 
         .wrap {
             box-sizing: border-box;
-            padding: 16px 18px;
-        }
-
-        .tgr-head {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: .4px;
-            color: #9fb0c0;
-            text-transform: uppercase;
-            margin-bottom: 14px;
-        }
-
-        .tgr-head svg path {
-            fill: var(--accent);
+            padding: 46px 18px 16px;
         }
 
         .tgr-status {
@@ -138,6 +122,12 @@
             color: #eaf0f6;
         }
 
+        .tgr-dev-meta {
+            margin-left: auto;
+            font-size: 11px;
+            color: #8a9bab;
+        }
+
         .tgr-empty {
             font-size: 12px;
             color: #8a9bab;
@@ -148,10 +138,6 @@
 
 <body>
     <div class="wrap" id="card">
-        <div class="tgr-head">
-            <svg width="16" height="16" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
-            <span id="title">Tibber Grid Rewards</span>
-        </div>
         <div class="tgr-status">
             <span class="tgr-dot"></span>
             <span class="tgr-status-label" id="state-label"></span>
@@ -177,7 +163,6 @@
             }
             document.documentElement.style.setProperty('--accent', data.accent || '#7a8a99');
 
-            document.getElementById('title').textContent = data.title || 'Tibber Grid Rewards';
             document.getElementById('state-label').textContent = data.stateLabel || '';
             document.getElementById('month').textContent = data.month || '';
             document.getElementById('total').textContent = data.total || '';
@@ -205,8 +190,12 @@
                 var name = document.createElement('span');
                 name.className = 'tgr-dev-name';
                 name.textContent = d.name || '';
+                var meta = document.createElement('span');
+                meta.className = 'tgr-dev-meta';
+                meta.textContent = d.meta || '';
                 row.appendChild(dot);
                 row.appendChild(name);
+                row.appendChild(meta);
                 dev.appendChild(row);
             });
         }
