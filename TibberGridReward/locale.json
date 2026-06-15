@@ -1,0 +1,26 @@
+{
+  "translations": {
+    "de": {
+      "Please select": "Bitte wählen",
+      "Grid Reward active": "Grid Reward aktiv",
+      "Status": "Status",
+      "Status detail": "Status-Detail",
+      "Reward current month": "Reward aktueller Monat",
+      "Reward total": "Reward gesamt",
+      "Currency": "Währung",
+      "Flex devices": "Flex-Geräte",
+      "Flex device list": "Flex-Geräte-Liste",
+      "Delivering": "Einsatz aktiv",
+      "Available": "Verfügbar",
+      "Unavailable": "Nicht verfügbar",
+      "Unknown": "Unbekannt",
+      "Battery": "Batterie",
+      "Vehicle": "Fahrzeug",
+      "plugged in": "eingesteckt",
+      "smart charging": "Smart-Laden",
+      "smart mode": "Smart-Modus",
+      "yes": "ja",
+      "no": "nein"
+    }
+  }
+}

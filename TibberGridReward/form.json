@@ -1,0 +1,68 @@
+{
+  "elements": [
+    {
+      "type": "Label",
+      "caption": "Tibber Grid Rewards – liefert den Grid-Reward-Status (u. a. das 'Delivering'-Signal) als Variablen. Voraussetzung: Teilnahme an Grid Rewards mit einem unterstützten Gerät (z. B. Tesla). Ergänzt das Modul 'Tibber V.2' (offizielle API)."
+    },
+    {
+      "type": "CheckBox",
+      "name": "Active",
+      "caption": "Aktiv"
+    },
+    {
+      "type": "ValidationTextBox",
+      "name": "Email",
+      "caption": "Tibber App – E-Mail"
+    },
+    {
+      "type": "PasswordTextBox",
+      "name": "Password",
+      "caption": "Tibber App – Passwort"
+    },
+    {
+      "type": "Select",
+      "name": "Home_ID",
+      "caption": "Zuhause (Home)",
+      "options": [
+        {
+          "caption": "Bitte wählen",
+          "value": "0"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Button",
+      "caption": "Zuhause-Liste neu laden",
+      "onClick": "TIBBERGR_UpdateHomes($id);"
+    }
+  ],
+  "status": [
+    {
+      "code": 102,
+      "icon": "active",
+      "caption": "Aktiv"
+    },
+    {
+      "code": 104,
+      "icon": "inactive",
+      "caption": "Inaktiv"
+    },
+    {
+      "code": 201,
+      "icon": "error",
+      "caption": "Keine Zugangsdaten (E-Mail/Passwort)"
+    },
+    {
+      "code": 202,
+      "icon": "error",
+      "caption": "Kein Zuhause gewählt"
+    },
+    {
+      "code": 210,
+      "icon": "error",
+      "caption": "Login fehlgeschlagen"
+    }
+  ]
+}
