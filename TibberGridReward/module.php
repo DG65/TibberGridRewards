@@ -60,6 +60,9 @@ class TibberGridReward extends IPSModule
         $this->RegisterTimer('TokenRefresh', 0, 'TIBBERGR_TokenRefresh($_IPS[\'TARGET\']);');
         $this->RegisterTimer('StartWatchdog', 0, 'TIBBERGR_StartWatchdog($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ReloginSequence', 0, 'TIBBERGR_ReloginSequence($_IPS[\'TARGET\']);');
+
+        // Instanz als HTML-Kachel-Visualisierung anmelden (sonst erscheint keine Kachel)
+        $this->SetVisualizationType(1);
     }
 
     public function Destroy()

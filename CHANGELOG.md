@@ -9,6 +9,8 @@
   Kachel kommt nun direkt als Visualisierungs-Tile der Instanz.
 - Letzter Status wird gepuffert (`LastStatus`), damit die Kachel beim Öffnen und nach Farbänderung
   sofort den aktuellen Stand zeigt.
+- Fix: `SetVisualizationType(1)` in `Create()` ergänzt – ohne diese Anmeldung erschien die Kachel
+  nicht in der Visualisierung.
 
 ## 1.0.0
 
