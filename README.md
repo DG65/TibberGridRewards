@@ -111,7 +111,11 @@ gestalteten Status-Karte für die Visualisierung: Statusanzeige (bei aktivem Ein
 Vergütung des aktuellen Monats und gesamt sowie die Flex-Geräte inkl. Einzelstatus.
 
 Zur Anzeige die Variable `Tile` einfach in die Kachel-Visualisierung bzw. ins Webfront ziehen – sie
-aktualisiert sich automatisch mit dem Status.
+aktualisiert sich automatisch mit dem Status. Sind mehrere Flex-Geräte (z. B. zwei Fahrzeuge)
+registriert, erscheint pro Gerät eine eigene Zeile mit Einzelstatus.
+
+Die Statusfarben (aktiv / verfügbar / nicht verfügbar) lassen sich im Instanzformular unter
+**🎨 Kachel-Farben** per Farbwähler anpassen – ohne Code-Änderung und update-fest.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 

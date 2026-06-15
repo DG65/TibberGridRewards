@@ -39,6 +39,11 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyString('Password', '');
         $this->RegisterPropertyString('Home_ID', '0');
 
+        // Kachel-Farben (SelectColor liefert 0xRRGGBB)
+        $this->RegisterPropertyInteger('ColorActive', 0x27D07F);
+        $this->RegisterPropertyInteger('ColorAvailable', 0x2BB3C0);
+        $this->RegisterPropertyInteger('ColorUnavailable', 0x7A8A99);
+
         $this->RegisterAttributeString('JWT', '');
         $this->RegisterAttributeInteger('JWT_Exp', 0);
         $this->RegisterAttributeString('Homes', '');
@@ -465,19 +470,23 @@ class TibberGridReward extends IPSModule
 
     private function BuildTile(string $stateName, bool $delivering, array $status, array $devices): string
     {
+        $cActive = $this->ColorHex($this->ReadPropertyInteger('ColorActive'), '#27d07f');
+        $cAvail = $this->ColorHex($this->ReadPropertyInteger('ColorAvailable'), '#2bb3c0');
+        $cUnavail = $this->ColorHex($this->ReadPropertyInteger('ColorUnavailable'), '#7a8a99');
+
         $typename = $status['state']['__typename'] ?? '';
         switch ($typename) {
             case 'GridRewardDelivering':
                 $cls = 'live';
-                $accent = '#27d07f';
+                $accent = $cActive;
                 break;
             case 'GridRewardAvailable':
                 $cls = 'avail';
-                $accent = '#2bb3c0';
+                $accent = $cAvail;
                 break;
             default:
                 $cls = 'off';
-                $accent = '#7a8a99';
+                $accent = $cUnavail;
         }
 
         $cur = $this->CurrencySymbol((string) ($status['rewardCurrency'] ?? ''));
@@ -488,7 +497,7 @@ class TibberGridReward extends IPSModule
         foreach ($devices as $d) {
             $dType = ($d['__typename'] ?? '') === 'GridRewardBattery';
             $dState = $d['state']['__typename'] ?? '';
-            $dColor = $dState === 'GridRewardDelivering' ? '#27d07f' : ($dState === 'GridRewardAvailable' ? '#2bb3c0' : '#7a8a99');
+            $dColor = $dState === 'GridRewardDelivering' ? $cActive : ($dState === 'GridRewardAvailable' ? $cAvail : $cUnavail);
             $name = htmlspecialchars((string) ($d['shortName'] ?? $d['make'] ?? '?'), ENT_QUOTES);
             $typeLabel = $dType ? $this->Translate('Battery') : $this->Translate('Vehicle');
             $meta = $typeLabel;
@@ -544,6 +553,14 @@ CSS;
             . '</div>';
 
         return $html;
+    }
+
+    private function ColorHex(int $value, string $fallback): string
+    {
+        if ($value < 0) { // SelectColor: -1 = keine Farbe
+            return $fallback;
+        }
+        return sprintf('#%06X', $value & 0xFFFFFF);
     }
 
     private function FormatMoney(float $value, string $currency): string

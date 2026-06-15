@@ -13,5 +13,8 @@
   - Zuhause-Auswahl per Dropdown (dynamisch aus `me { homes }`).
   - Watchdog + Relogin-Sequenz bei Datenausfall.
   - Webfront-Kachel: Variable `Tile` (`~HTMLBox`) mit Status-Karte (pulsierend bei aktivem
-    Einsatz), Reward-Beträgen und Flex-Geräte-Liste.
+    Einsatz), Reward-Beträgen und Flex-Geräte-Liste (eine Zeile je Gerät, auch bei mehreren
+    Fahrzeugen).
+  - Kachel-Statusfarben (aktiv/verfügbar/nicht verfügbar) per Farbwähler im Formular einstellbar
+    (`SelectColor`, Panel „Kachel-Farben").
 - Alter Platzhalter `GridReward/` entfernt.
