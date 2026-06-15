@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.0
+
+- Kachel-Modul `TibberGridRewardTile` voll anpassbar:
+  - **Alle Farben** wählbar: Statusfarben (aktiv/verfügbar/nicht verfügbar) plus Hintergrund,
+    Boxen, Text (Werte) und Text (Beschriftungen).
+  - **Schriftart** (System/Arial/Verdana/Tahoma/Trebuchet/Georgia/Courier) und **Schriftgröße**
+    (Faktor 0,5–2,5×) einstellbar.
+  - Button **„Farben & Schrift auf Standard zurücksetzen"**.
+- Gerätezeilen zeigen jetzt **mehr Infos** (Typ + Zusatzangaben wie „eingesteckt"/„Smart-Laden"),
+  Status weiterhin als Farbpunkt.
+- Eigener Kachel-Header endgültig entfernt, oben mehr Platz für den IPS-Titelbalken (kein
+  überlappender, unlesbarer Text mehr).
+
 ## 1.3.0
 
 - Neues, **eigenständiges Kachel-Modul `TibberGridRewardTile`** in derselben Bibliothek (analog zum

@@ -12,37 +12,62 @@
     },
     {
       "type": "ExpansionPanel",
-      "caption": "🎨 Kachel-Farben",
+      "caption": "🎨 Statusfarben",
+      "items": [
+        { "type": "SelectColor", "name": "ColorActive", "caption": "Einsatz aktiv" },
+        { "type": "SelectColor", "name": "ColorAvailable", "caption": "Verfügbar" },
+        { "type": "SelectColor", "name": "ColorUnavailable", "caption": "Nicht verfügbar" }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "🖌️ Flächen & Text",
+      "items": [
+        { "type": "SelectColor", "name": "ColorBackground", "caption": "Hintergrund" },
+        { "type": "SelectColor", "name": "ColorBox", "caption": "Kacheln/Boxen" },
+        { "type": "SelectColor", "name": "ColorText", "caption": "Text (Werte)" },
+        { "type": "SelectColor", "name": "ColorTextMuted", "caption": "Text (Beschriftungen)" }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "🔤 Schrift",
       "items": [
         {
-          "type": "SelectColor",
-          "name": "ColorActive",
-          "caption": "Einsatz aktiv"
+          "type": "Select",
+          "name": "FontFamily",
+          "caption": "Schriftart",
+          "options": [
+            { "caption": "System (Standard)", "value": "system" },
+            { "caption": "Arial", "value": "arial" },
+            { "caption": "Verdana", "value": "verdana" },
+            { "caption": "Tahoma", "value": "tahoma" },
+            { "caption": "Trebuchet MS", "value": "trebuchet" },
+            { "caption": "Georgia (Serif)", "value": "georgia" },
+            { "caption": "Courier New (Monospace)", "value": "courier" }
+          ]
         },
         {
-          "type": "SelectColor",
-          "name": "ColorAvailable",
-          "caption": "Verfügbar"
-        },
-        {
-          "type": "SelectColor",
-          "name": "ColorUnavailable",
-          "caption": "Nicht verfügbar"
+          "type": "NumberSpinner",
+          "name": "FontScale",
+          "caption": "Schriftgröße (Faktor)",
+          "digits": 2,
+          "minimum": 0.5,
+          "maximum": 2.5,
+          "suffix": "×"
         }
       ]
     }
   ],
-  "actions": [],
-  "status": [
+  "actions": [
     {
-      "code": 102,
-      "icon": "active",
-      "caption": "Aktiv"
-    },
-    {
-      "code": 104,
-      "icon": "inactive",
-      "caption": "Keine Datenquelle gewählt"
+      "type": "Button",
+      "caption": "Farben & Schrift auf Standard zurücksetzen",
+      "onClick": "TGRTILE_ResetStyle($id);"
     }
+  ],
+  "status": [
+    { "code": 102, "icon": "active", "caption": "Aktiv" },
+    { "code": 104, "icon": "inactive", "caption": "Keine Datenquelle gewählt" }
   ]
 }

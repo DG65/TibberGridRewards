@@ -6,7 +6,7 @@ declare(strict_types=1);
  * TibberGridRewardTile
  *
  * Eigenständige HTML-SDK-Kachel für die Tile-Visualisierung. Liest die Variablen einer
- * TibberGridReward-Instanz (Quelle) und stellt sie als randlose Status-Kachel dar.
+ * TibberGridReward-Instanz (Quelle) und stellt sie als randlose, frei gestaltbare Status-Kachel dar.
  *
  * Bewusst von der Datenlogik getrennt (Vorbild da8ter): Ein Problem in der Kachel kann die
  * WebSocket-/Datenverbindung der Quell-Instanz nicht beeinträchtigen.
@@ -16,6 +16,17 @@ class TibberGridRewardTile extends IPSModule
     // GUID des Datenmoduls TibberGridReward (für die Quellen-Auswahl)
     private const SOURCE_MODULE = '{E92F62F4-88A6-4C6E-9F0D-E76C3B1C9A01}';
 
+    // Standardwerte (auch für „Zurücksetzen")
+    private const DEF_ACTIVE      = 0x27D07F;
+    private const DEF_AVAILABLE   = 0x2BB3C0;
+    private const DEF_UNAVAILABLE = 0x7A8A99;
+    private const DEF_BACKGROUND  = 0x161D26;
+    private const DEF_BOX         = 0x223141;
+    private const DEF_TEXT        = 0xFFFFFF;
+    private const DEF_TEXTMUTED   = 0x9FB0C0;
+    private const DEF_FONT        = 'system';
+    private const DEF_SCALE       = 1.0;
+
     public function Create()
     {
         //Never delete this line!
@@ -23,10 +34,18 @@ class TibberGridRewardTile extends IPSModule
 
         $this->RegisterPropertyInteger('SourceInstance', 0);
 
-        // Kachel-Farben (SelectColor liefert 0xRRGGBB)
-        $this->RegisterPropertyInteger('ColorActive', 0x27D07F);
-        $this->RegisterPropertyInteger('ColorAvailable', 0x2BB3C0);
-        $this->RegisterPropertyInteger('ColorUnavailable', 0x7A8A99);
+        // Statusfarben
+        $this->RegisterPropertyInteger('ColorActive', self::DEF_ACTIVE);
+        $this->RegisterPropertyInteger('ColorAvailable', self::DEF_AVAILABLE);
+        $this->RegisterPropertyInteger('ColorUnavailable', self::DEF_UNAVAILABLE);
+        // Flächen-/Textfarben
+        $this->RegisterPropertyInteger('ColorBackground', self::DEF_BACKGROUND);
+        $this->RegisterPropertyInteger('ColorBox', self::DEF_BOX);
+        $this->RegisterPropertyInteger('ColorText', self::DEF_TEXT);
+        $this->RegisterPropertyInteger('ColorTextMuted', self::DEF_TEXTMUTED);
+        // Schrift
+        $this->RegisterPropertyString('FontFamily', self::DEF_FONT);
+        $this->RegisterPropertyFloat('FontScale', self::DEF_SCALE);
 
         // Als HTML-Kachel-Visualisierung anmelden
         $this->SetVisualizationType(1);
@@ -85,6 +104,25 @@ class TibberGridRewardTile extends IPSModule
         return json_encode($form);
     }
 
+    /**
+     * Button-Aktion: alle Farben und Schrifteinstellungen auf Standard zurücksetzen.
+     */
+    public function ResetStyle(): void
+    {
+        $id = $this->InstanceID;
+        IPS_SetProperty($id, 'ColorActive', self::DEF_ACTIVE);
+        IPS_SetProperty($id, 'ColorAvailable', self::DEF_AVAILABLE);
+        IPS_SetProperty($id, 'ColorUnavailable', self::DEF_UNAVAILABLE);
+        IPS_SetProperty($id, 'ColorBackground', self::DEF_BACKGROUND);
+        IPS_SetProperty($id, 'ColorBox', self::DEF_BOX);
+        IPS_SetProperty($id, 'ColorText', self::DEF_TEXT);
+        IPS_SetProperty($id, 'ColorTextMuted', self::DEF_TEXTMUTED);
+        IPS_SetProperty($id, 'FontFamily', self::DEF_FONT);
+        IPS_SetProperty($id, 'FontScale', self::DEF_SCALE);
+        IPS_ApplyChanges($id);
+        $this->ReloadForm();
+    }
+
     public function GetVisualizationTile()
     {
         $module = file_get_contents(__DIR__ . '/module.html');
@@ -103,9 +141,18 @@ class TibberGridRewardTile extends IPSModule
         $cAvail = $this->ColorHex($this->ReadPropertyInteger('ColorAvailable'), '#2bb3c0');
         $cUnavail = $this->ColorHex($this->ReadPropertyInteger('ColorUnavailable'), '#7a8a99');
 
+        $style = [
+            'bg'        => $this->ColorHex($this->ReadPropertyInteger('ColorBackground'), '#161d26'),
+            'box'       => $this->ColorHex($this->ReadPropertyInteger('ColorBox'), '#223141'),
+            'text'      => $this->ColorHex($this->ReadPropertyInteger('ColorText'), '#ffffff'),
+            'textmuted' => $this->ColorHex($this->ReadPropertyInteger('ColorTextMuted'), '#9fb0c0'),
+            'font'      => $this->FontStack($this->ReadPropertyString('FontFamily')),
+            'scale'     => $this->FontScaleValue(),
+        ];
+
         $src = $this->ReadPropertyInteger('SourceInstance');
         if ($src <= 0 || !IPS_InstanceExists($src)) {
-            return json_encode([
+            return json_encode(array_merge($style, [
                 'stateLabel' => $this->Translate('No source selected'),
                 'cls'        => 'off',
                 'accent'     => $cUnavail,
@@ -113,10 +160,9 @@ class TibberGridRewardTile extends IPSModule
                 'total'      => '–',
                 'monthLabel' => $this->Translate('This month'),
                 'totalLabel' => $this->Translate('Total'),
-                'title'      => 'Tibber Grid Rewards',
                 'emptyLabel' => $this->Translate('No flex devices'),
                 'devices'    => [],
-            ]);
+            ]));
         }
 
         $delivering = (bool) $this->ReadSourceValue($src, 'Delivering', false);
@@ -137,34 +183,9 @@ class TibberGridRewardTile extends IPSModule
         $month = $this->FormatMoney((float) $this->ReadSourceValue($src, 'RewardCurrentMonth', 0), $cur);
         $total = $this->FormatMoney((float) $this->ReadSourceValue($src, 'RewardAllTime', 0), $cur);
 
-        $devices = [];
-        $flexText = (string) $this->ReadSourceValue($src, 'FlexDevices', '');
-        foreach (explode("\n", $flexText) as $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-            // "Name (Typ) · Status · ..." -> Name + Typ extrahieren
-            $name = $line;
-            $meta = '';
-            if (preg_match('/^(.*?)\s*\(([^)]*)\)/u', $line, $m)) {
-                $name = trim($m[1]);
-                $meta = trim($m[2]);
-            }
-            // Farbpunkt nach Gerätestatus (Unavailable vor Available prüfen – Teilstring!)
-            if (mb_strpos($line, $this->Translate('Delivering')) !== false) {
-                $color = $cActive;
-            } elseif (mb_strpos($line, $this->Translate('Unavailable')) !== false) {
-                $color = $cUnavail;
-            } elseif (mb_strpos($line, $this->Translate('Available')) !== false) {
-                $color = $cAvail;
-            } else {
-                $color = $accent;
-            }
-            $devices[] = ['name' => $name, 'meta' => $meta, 'color' => $color];
-        }
+        $devices = $this->ParseDevices((string) $this->ReadSourceValue($src, 'FlexDevices', ''), $cActive, $cAvail, $cUnavail);
 
-        return json_encode([
+        return json_encode(array_merge($style, [
             'stateLabel' => $stateText !== '' ? $stateText : $this->Translate('No data yet'),
             'cls'        => $cls,
             'accent'     => $accent,
@@ -172,15 +193,72 @@ class TibberGridRewardTile extends IPSModule
             'total'      => $total,
             'monthLabel' => $this->Translate('This month'),
             'totalLabel' => $this->Translate('Total'),
-            'title'      => 'Tibber Grid Rewards',
             'emptyLabel' => $this->Translate('No flex devices'),
             'devices'    => $devices,
-        ]);
+        ]));
     }
 
     /**
-     * Liest eine Variable der Quell-Instanz anhand ihres Idents.
+     * Zerlegt die FlexDevices-Textzeilen in Name, Meta (Typ + Zusatzinfos) und Farbpunkt.
      */
+    private function ParseDevices(string $flexText, string $cActive, string $cAvail, string $cUnavail): array
+    {
+        $devices = [];
+        $labelDelivering = $this->Translate('Delivering');
+        $labelUnavailable = $this->Translate('Unavailable');
+        $labelAvailable = $this->Translate('Available');
+
+        foreach (explode("\n", $flexText) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $parts = array_map('trim', explode('·', $line));
+            $head = array_shift($parts); // "Name (Typ)"
+
+            $name = $head;
+            $type = '';
+            if (preg_match('/^(.*?)\s*\(([^)]*)\)/u', $head, $m)) {
+                $name = trim($m[1]);
+                $type = trim($m[2]);
+            }
+
+            // Farbe nach Gerätestatus (Unavailable vor Available prüfen – Teilstring!)
+            if (mb_strpos($line, $labelDelivering) !== false) {
+                $color = $cActive;
+            } elseif (mb_strpos($line, $labelUnavailable) !== false) {
+                $color = $cUnavail;
+            } elseif ($labelAvailable !== '' && mb_strpos($line, $labelAvailable) !== false) {
+                $color = $cAvail;
+            } else {
+                $color = $cUnavail;
+            }
+
+            // Zusatzinfos: alle Segmente außer dem Status (der steckt im Farbpunkt)
+            $extras = [];
+            foreach ($parts as $p) {
+                if ($p === $labelDelivering || $p === $labelUnavailable || $p === $labelAvailable) {
+                    continue;
+                }
+                $extras[] = $p;
+            }
+            $metaParts = [];
+            if ($type !== '') {
+                $metaParts[] = $type;
+            }
+            foreach ($extras as $e) {
+                $metaParts[] = $e;
+            }
+
+            $devices[] = [
+                'name'  => $name,
+                'meta'  => implode(' · ', $metaParts),
+                'color' => $color,
+            ];
+        }
+        return $devices;
+    }
+
     private function ReadSourceValue(int $instanceID, string $ident, $default)
     {
         $vid = @IPS_GetObjectIDByIdent($ident, $instanceID);
@@ -188,6 +266,32 @@ class TibberGridRewardTile extends IPSModule
             return $default;
         }
         return GetValue($vid);
+    }
+
+    private function FontStack(string $key): string
+    {
+        switch ($key) {
+            case 'arial':     return 'Arial, Helvetica, sans-serif';
+            case 'verdana':   return 'Verdana, Geneva, sans-serif';
+            case 'tahoma':    return 'Tahoma, Geneva, sans-serif';
+            case 'trebuchet': return '"Trebuchet MS", Helvetica, sans-serif';
+            case 'georgia':   return 'Georgia, "Times New Roman", serif';
+            case 'courier':   return '"Courier New", Courier, monospace';
+            case 'system':
+            default:          return "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        }
+    }
+
+    private function FontScaleValue(): float
+    {
+        $v = $this->ReadPropertyFloat('FontScale');
+        if ($v < 0.5) {
+            $v = 0.5;
+        }
+        if ($v > 2.5) {
+            $v = 2.5;
+        }
+        return $v;
     }
 
     private function ColorHex(int $value, string $fallback): string
