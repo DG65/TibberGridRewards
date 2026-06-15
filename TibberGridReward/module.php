@@ -72,6 +72,9 @@ class TibberGridReward extends IPSModule
         //Never delete this line!
         parent::ApplyChanges();
 
+        // Standard-Darstellung erzwingen (räumt evtl. aus 1.1.0 verbliebenen HTML-SDK-Typ auf)
+        $this->SetVisualizationType(0);
+
         $this->RegisterProfiles();
 
         if (!$this->ReadPropertyBoolean('Active')) {
