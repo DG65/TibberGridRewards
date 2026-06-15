@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --accent: #7a8a99;
+        }
+
+        html {
+            height: 100%;
+            background: linear-gradient(160deg, #1d2733, #141b24);
+            overflow: hidden;
+        }
+
+        body {
+            margin: 0;
+            height: 100%;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #eaf0f6;
+        }
+
+        .wrap {
+            box-sizing: border-box;
+            padding: 16px 18px;
+        }
+
+        .tgr-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: .4px;
+            color: #9fb0c0;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        .tgr-head svg path {
+            fill: var(--accent);
+        }
+
+        .tgr-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .tgr-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            flex: 0 0 auto;
+            color: var(--accent);
+            background: var(--accent);
+            box-shadow: 0 0 6px 1px currentColor;
+        }
+
+        .tgr-status-label {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1;
+            color: var(--accent);
+        }
+
+        #card.live .tgr-dot {
+            animation: tgrpulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes tgrpulse {
+            0%, 100% {
+                box-shadow: 0 0 4px 0 currentColor;
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 13px 4px currentColor;
+                transform: scale(1.18);
+            }
+        }
+
+        .tgr-rewards {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .tgr-reward {
+            flex: 1;
+            background: rgba(255, 255, 255, .05);
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+
+        .tgr-reward-val {
+            font-size: 19px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .tgr-reward-lbl {
+            font-size: 10px;
+            color: #9fb0c0;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .tgr-devices {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .tgr-dev {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 13px;
+            background: rgba(255, 255, 255, .04);
+            border-radius: 10px;
+            padding: 8px 11px;
+        }
+
+        .tgr-dev-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex: 0 0 auto;
+        }
+
+        .tgr-dev-name {
+            font-weight: 600;
+            color: #eaf0f6;
+        }
+
+        .tgr-dev-meta {
+            margin-left: auto;
+            font-size: 11px;
+            color: #8a9bab;
+        }
+
+        .tgr-empty {
+            font-size: 12px;
+            color: #8a9bab;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap" id="card">
+        <div class="tgr-head">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+            <span id="title">Tibber Grid Rewards</span>
+        </div>
+        <div class="tgr-status">
+            <span class="tgr-dot"></span>
+            <span class="tgr-status-label" id="state-label"></span>
+        </div>
+        <div class="tgr-rewards">
+            <div class="tgr-reward">
+                <div class="tgr-reward-val" id="month"></div>
+                <div class="tgr-reward-lbl" id="month-label"></div>
+            </div>
+            <div class="tgr-reward">
+                <div class="tgr-reward-val" id="total"></div>
+                <div class="tgr-reward-lbl" id="total-label"></div>
+            </div>
+        </div>
+        <div class="tgr-devices" id="devices"></div>
+    </div>
+
+    <script>
+        function handleMessage(payload) {
+            var data = (typeof payload === 'string') ? JSON.parse(payload) : payload;
+            if (!data) {
+                return;
+            }
+            var root = document.documentElement;
+            root.style.setProperty('--accent', data.accent || '#7a8a99');
+
+            document.getElementById('title').textContent = data.title || 'Tibber Grid Rewards';
+            document.getElementById('state-label').textContent = data.stateLabel || '';
+            document.getElementById('month').textContent = data.month || '';
+            document.getElementById('total').textContent = data.total || '';
+            document.getElementById('month-label').textContent = data.monthLabel || '';
+            document.getElementById('total-label').textContent = data.totalLabel || '';
+
+            document.getElementById('card').classList.toggle('live', data.cls === 'live');
+
+            var dev = document.getElementById('devices');
+            dev.textContent = '';
+            var list = data.devices || [];
+            if (!list.length) {
+                var e = document.createElement('div');
+                e.className = 'tgr-empty';
+                e.textContent = data.emptyLabel || '';
+                dev.appendChild(e);
+                return;
+            }
+            list.forEach(function (d) {
+                var row = document.createElement('div');
+                row.className = 'tgr-dev';
+                var dot = document.createElement('span');
+                dot.className = 'tgr-dev-dot';
+                dot.style.background = d.color || '#7a8a99';
+                var name = document.createElement('span');
+                name.className = 'tgr-dev-name';
+                name.textContent = d.name || '';
+                var meta = document.createElement('span');
+                meta.className = 'tgr-dev-meta';
+                meta.textContent = d.meta || '';
+                row.appendChild(dot);
+                row.appendChild(name);
+                row.appendChild(meta);
+                dev.appendChild(row);
+            });
+        }
+    </script>
+</body>
+
+</html>

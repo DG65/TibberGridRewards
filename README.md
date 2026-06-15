@@ -94,7 +94,6 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 
 | Ident | Typ | Bedeutung |
 |---|---|---|
-| `Tile` | String (~HTMLBox) | Fertige **Webfront-Kachel** mit Status, Reward-Beträgen und Flex-Geräten |
 | `Delivering` | Boolean | **Primäres Signal** – `true`, solange ein Grid-Reward-Einsatz läuft |
 | `State` | String | `Verfügbar` / `Nicht verfügbar` / `Einsatz aktiv` |
 | `StateReason` | String | Roh-Begründung (`reason` / `kind` / `reasons`) – z. B. zur Richtungsbestimmung |
@@ -104,15 +103,17 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 | `FlexDeviceCount` | Integer | Anzahl der Flex-Geräte |
 | `FlexDevices` | String | Lesbare Liste der Flex-Geräte inkl. Einzelstatus |
 
-## Webfront-Kachel
+## Visualisierungs-Kachel
 
-Das Modul erzeugt zusätzlich die Variable `Tile` (Profil `~HTMLBox`) mit einer fertigen, dunkel
-gestalteten Status-Karte für die Visualisierung: Statusanzeige (bei aktivem Einsatz pulsierend),
-Vergütung des aktuellen Monats und gesamt sowie die Flex-Geräte inkl. Einzelstatus.
+Das Modul bringt eine eigene **HTML-SDK-Kachel** für die Tile-Visualisierung mit (über
+`GetVisualizationTile()`). Sie füllt die Kachel **randlos** – ohne zusätzlichen Innenrahmen – und zeigt
+eine dunkel gestaltete Status-Karte: Statusanzeige (bei aktivem Einsatz pulsierend), Vergütung des
+aktuellen Monats und gesamt sowie die Flex-Geräte inkl. Einzelstatus. Sind mehrere Flex-Geräte
+(z. B. zwei Fahrzeuge) registriert, erscheint pro Gerät eine eigene Zeile.
 
-Zur Anzeige die Variable `Tile` einfach in die Kachel-Visualisierung bzw. ins Webfront ziehen – sie
-aktualisiert sich automatisch mit dem Status. Sind mehrere Flex-Geräte (z. B. zwei Fahrzeuge)
-registriert, erscheint pro Gerät eine eigene Zeile mit Einzelstatus.
+Die Kachel steht in der Tile-Visualisierung direkt für die Instanz zur Verfügung – einfach die
+Instanz-Kachel auf eine Visualisierungsseite legen. Sie aktualisiert sich automatisch
+(`UpdateVisualizationValue`) mit jedem Status-Update.
 
 Die Statusfarben (aktiv / verfügbar / nicht verfügbar) lassen sich im Instanzformular unter
 **🎨 Kachel-Farben** per Farbwähler anpassen – ohne Code-Änderung und update-fest.

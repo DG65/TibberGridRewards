@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0
+
+- Kachel auf **HTML-SDK-Tile-Visualisierung** umgestellt (`GetVisualizationTile()` + `module.html`
+  mit `handleMessage()`). Sie füllt die Kachel jetzt **randlos**, ohne zusätzlichen Innenrahmen
+  (Vorbild: da8ter/TileVisu-Kacheln).
+- Variable `Tile` (`~HTMLBox`) entfällt dadurch (wird beim Übernehmen automatisch entfernt); die
+  Kachel kommt nun direkt als Visualisierungs-Tile der Instanz.
+- Letzter Status wird gepuffert (`LastStatus`), damit die Kachel beim Öffnen und nach Farbänderung
+  sofort den aktuellen Stand zeigt.
+
 ## 1.0.0
 
 - Repository/Bibliothek von `GridReward` zu **TibberGridRewards** umbenannt (`library.json`: name, url).
