@@ -76,6 +76,10 @@ class TibberGridReward extends IPSModule
         //Never delete this line!
         parent::ApplyChanges();
 
+        // Auch hier anmelden, damit bereits bestehende Instanzen die Kachel ohne Neuanlegen bekommen
+        // (Create() läuft bei einem Modul-Update nicht erneut).
+        $this->SetVisualizationType(1);
+
         $this->RegisterProfiles();
 
         if (!$this->ReadPropertyBoolean('Active')) {
