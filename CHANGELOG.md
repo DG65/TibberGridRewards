@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.0
+
+- Kachel-Modul erkennt die Datenquelle jetzt **automatisch**, wenn es genau eine
+  `TibberGridReward`-Instanz gibt (`ResolveSource()` via `IPS_GetInstanceListByModuleID`). Das
+  `SelectInstance`-Feld bleibt als optionale Übersteuerung (nur bei mehreren Dateninstanzen nötig).
+
 ## 1.5.0
 
 - **Kachel-Defaults wie da8ter:** Hintergrund standardmäßig **transparent** (Kachel übernimmt das

@@ -76,7 +76,7 @@ class TibberGridRewardTile extends IPSModule
         }
 
         // Auf Änderungen der Quell-Variablen lauschen, damit die Kachel sich aktualisiert
-        $src = $this->ReadPropertyInteger('SourceInstance');
+        $src = $this->ResolveSource();
         if ($src > 0 && IPS_InstanceExists($src)) {
             foreach (['Delivering', 'State', 'RewardCurrentMonth', 'RewardAllTime', 'Currency', 'FlexDevices'] as $ident) {
                 $vid = @IPS_GetObjectIDByIdent($ident, $src);
@@ -153,7 +153,7 @@ class TibberGridRewardTile extends IPSModule
             'scale'     => $this->FontScaleValue(),
         ];
 
-        $src = $this->ReadPropertyInteger('SourceInstance');
+        $src = $this->ResolveSource();
         if ($src <= 0 || !IPS_InstanceExists($src)) {
             return json_encode(array_merge($style, [
                 'stateLabel' => $this->Translate('No source selected'),
@@ -260,6 +260,23 @@ class TibberGridRewardTile extends IPSModule
             ];
         }
         return $devices;
+    }
+
+    /**
+     * Ermittelt die Quell-Instanz: bevorzugt die manuell gewählte, sonst – wenn es im System genau
+     * eine TibberGridReward-Instanz gibt – automatisch diese.
+     */
+    private function ResolveSource(): int
+    {
+        $configured = $this->ReadPropertyInteger('SourceInstance');
+        if ($configured > 0 && IPS_InstanceExists($configured)) {
+            return $configured;
+        }
+        $list = IPS_GetInstanceListByModuleID(self::SOURCE_MODULE);
+        if (count($list) === 1) {
+            return (int) $list[0];
+        }
+        return 0;
     }
 
     private function ReadSourceValue(int $instanceID, string $ident, $default)

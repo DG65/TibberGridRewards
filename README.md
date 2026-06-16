@@ -110,7 +110,8 @@ HTML-SDK-Kachel, die die Tile **randlos** füllt (kein zusätzlicher Innenrahmen
 Datenlogik getrennt ist (ein Kachel-Problem kann die Datenverbindung nicht stören).
 
 1. Instanz **TibberGridRewardTile** anlegen.
-2. Im Formular die **Datenquelle** (deine `TibberGridReward`-Instanz) wählen.
+2. Die **Datenquelle** wird automatisch erkannt, wenn es genau eine `TibberGridReward`-Instanz gibt;
+   nur bei mehreren musst du sie im Formular manuell wählen.
 3. Die Instanz-Kachel in der Kachel-Visualisierung auf eine Seite legen.
 
 Standardmäßig ist der **Hintergrund transparent** und der Text passt sich automatisch dem hellen/dunklen
