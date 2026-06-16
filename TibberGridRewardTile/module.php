@@ -193,6 +193,20 @@ class TibberGridRewardTile extends IPSModule
             $wallbox = $this->FormatPower((float) GetValue($wbVid));
         }
 
+        // Grid-Reward-Energie (Einsatz / heute / Monat / gesamt)
+        $energy = [];
+        foreach ([
+            ['GridRewardEnergyEvent', $this->Translate('Event')],
+            ['GridRewardEnergyToday', $this->Translate('Today')],
+            ['GridRewardEnergyMonth', $this->Translate('Month')],
+            ['GridRewardEnergyTotal', $this->Translate('Total')],
+        ] as $pair) {
+            $eid = @IPS_GetObjectIDByIdent($pair[0], $src);
+            if ($eid !== false && $eid > 0) {
+                $energy[] = ['label' => $pair[1], 'val' => $this->FormatKwh((float) GetValue($eid))];
+            }
+        }
+
         $devices = $this->ParseDevices((string) $this->ReadSourceValue($src, 'FlexDevices', ''), $cActive, $cAvail, $cUnavail);
 
         return json_encode(array_merge($style, [
@@ -205,9 +219,16 @@ class TibberGridRewardTile extends IPSModule
             'totalLabel'   => $this->Translate('Total'),
             'wallbox'      => $wallbox,
             'wallboxLabel' => $this->Translate('Wallboxes'),
+            'energy'       => $energy,
+            'energyLabel'  => $this->Translate('Grid reward energy'),
             'emptyLabel'   => $this->Translate('No flex devices'),
             'devices'      => $devices,
         ]));
+    }
+
+    private function FormatKwh(float $kwh): string
+    {
+        return number_format($kwh, 2, ',', '.') . ' kWh';
     }
 
     private function FormatPower(float $w): string

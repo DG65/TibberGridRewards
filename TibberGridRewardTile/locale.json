@@ -9,7 +9,11 @@
       "Available": "Verfügbar",
       "Unavailable": "Nicht verfügbar",
       "Delivering": "Einsatz aktiv",
-      "Wallboxes": "Wallboxen"
+      "Wallboxes": "Wallboxen",
+      "Grid reward energy": "Grid-Reward-Energie",
+      "Event": "Einsatz",
+      "Today": "Heute",
+      "Month": "Monat"
     }
   }
 }

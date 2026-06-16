@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.1
+
+- **Fix:** Profil `~UnixTimestampInterval` existiert in IPS nicht → `ApplyChanges` brach ab. Die
+  Einsatz-Dauer (`LastEventDuration`) ist jetzt eine formatierte Textvariable (z. B. „1 h 23 min").
+- Kachel zeigt zusätzlich die **vier Energiewerte** (Einsatz / heute / Monat / gesamt).
+
 ## 1.7.0
 
 - **Wallbox-Aggregation & EMS-Übergabe** im Datenmodul:

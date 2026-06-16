@@ -549,7 +549,7 @@ class TibberGridReward extends IPSModule
         // Einsatz-Log
         $this->MaintainVariable('LastEventStart', $this->Translate('Last event start'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $pos++, true);
         $this->MaintainVariable('LastEventEnd', $this->Translate('Last event end'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $pos++, true);
-        $this->MaintainVariable('LastEventDuration', $this->Translate('Last event duration'), VARIABLETYPE_INTEGER, '~UnixTimestampInterval', $pos++, true);
+        $this->MaintainVariable('LastEventDuration', $this->Translate('Last event duration'), VARIABLETYPE_STRING, '', $pos++, true);
         $this->MaintainVariable('LastEventEnergy', $this->Translate('Last event energy'), VARIABLETYPE_FLOAT, '~Electricity', $pos++, true);
     }
 
@@ -687,6 +687,20 @@ class TibberGridReward extends IPSModule
         $this->SetValueIfExists('GridRewardEnergyTotal', (float) $this->GetValueSafe('GridRewardEnergyTotal') + $kwh);
     }
 
+    private function FormatDuration(int $seconds): string
+    {
+        $h = intdiv($seconds, 3600);
+        $m = intdiv($seconds % 3600, 60);
+        $s = $seconds % 60;
+        if ($h > 0) {
+            return sprintf('%d h %02d min', $h, $m);
+        }
+        if ($m > 0) {
+            return sprintf('%d min %02d s', $m, $s);
+        }
+        return $s . ' s';
+    }
+
     private function UpdateKPI(): void
     {
         $energyMonth = (float) $this->GetValueSafe('GridRewardEnergyMonth');
@@ -713,7 +727,7 @@ class TibberGridReward extends IPSModule
         $end = time();
         $start = (int) $this->GetValueSafe('LastEventStart');
         $this->SetValueIfExists('LastEventEnd', $end);
-        $this->SetValueIfExists('LastEventDuration', $start > 0 ? max(0, $end - $start) : 0);
+        $this->SetValueIfExists('LastEventDuration', $this->FormatDuration($start > 0 ? max(0, $end - $start) : 0));
         $this->SetValueIfExists('LastEventEnergy', (float) $this->GetValueSafe('GridRewardEnergyEvent'));
         $this->SendDebug(__FUNCTION__, 'Grid-Reward-Einsatz beendet', 0);
     }

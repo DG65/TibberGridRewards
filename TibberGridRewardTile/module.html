@@ -132,6 +132,41 @@
             color: var(--text);
         }
 
+        .tgr-energy-head {
+            font-size: calc(10px * var(--scale));
+            color: var(--textmuted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 6px;
+        }
+
+        .tgr-energy {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px;
+            margin-bottom: 12px;
+        }
+
+        .tgr-en {
+            background: var(--box);
+            border-radius: 10px;
+            padding: 8px 10px;
+        }
+
+        .tgr-en-val {
+            font-size: calc(14px * var(--scale));
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .tgr-en-lbl {
+            font-size: calc(10px * var(--scale));
+            color: var(--textmuted);
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            margin-top: 2px;
+        }
+
         .tgr-devices {
             display: flex;
             flex-direction: column;
@@ -195,6 +230,10 @@
             <span class="tgr-wb-label" id="wallbox-label"></span>
             <span class="tgr-wb-val" id="wallbox-val"></span>
         </div>
+        <div id="energy-wrap" style="display:none">
+            <div class="tgr-energy-head" id="energy-head"></div>
+            <div class="tgr-energy" id="energy"></div>
+        </div>
         <div class="tgr-devices" id="devices"></div>
     </div>
 
@@ -238,6 +277,30 @@
                 wbRow.style.display = '';
             } else {
                 wbRow.style.display = 'none';
+            }
+
+            var enWrap = document.getElementById('energy-wrap');
+            var en = document.getElementById('energy');
+            en.textContent = '';
+            var elist = data.energy || [];
+            if (elist.length) {
+                document.getElementById('energy-head').textContent = data.energyLabel || '';
+                elist.forEach(function (e) {
+                    var cell = document.createElement('div');
+                    cell.className = 'tgr-en';
+                    var v = document.createElement('div');
+                    v.className = 'tgr-en-val';
+                    v.textContent = e.val || '';
+                    var l = document.createElement('div');
+                    l.className = 'tgr-en-lbl';
+                    l.textContent = e.label || '';
+                    cell.appendChild(v);
+                    cell.appendChild(l);
+                    en.appendChild(cell);
+                });
+                enWrap.style.display = '';
+            } else {
+                enWrap.style.display = 'none';
             }
 
             var dev = document.getElementById('devices');
