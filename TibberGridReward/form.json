@@ -36,7 +36,7 @@
       "items": [
         {
           "type": "Label",
-          "caption": "Wirkleistungs-Datenpunkte aller Wallboxen wählen. Die Summe wird als Variable „Wallbox-Leistung (gesamt)“ bereitgestellt (für EMS und Kachel). Faktor z. B. 1000, falls eine Quelle in kW statt W liefert."
+          "caption": "Pro Wallbox die Wirkleistung wählen (Pflicht, für EMS-Sollwert & Summe). Faktor z. B. 1000, falls eine Quelle in kW statt W liefert. Optional zusätzlich den Energiezähler „abgegebene Energie im Ladezyklus“ (kWh) wählen – dann wird die Grid-Reward-Energie exakt aus diesem Zähler berechnet (reset-fest), sonst aus der Leistung integriert."
         },
         {
           "type": "List",
@@ -61,11 +61,18 @@
               "edit": { "type": "SelectVariable" }
             },
             {
-              "caption": "Faktor",
+              "caption": "Faktor (Leistung)",
               "name": "Factor",
-              "width": "90px",
+              "width": "120px",
               "add": 1,
               "edit": { "type": "NumberSpinner", "digits": 3 }
+            },
+            {
+              "caption": "Energie Ladezyklus (kWh, optional)",
+              "name": "EnergyID",
+              "width": "auto",
+              "add": 0,
+              "edit": { "type": "SelectVariable" }
             }
           ]
         },

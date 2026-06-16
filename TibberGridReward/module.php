@@ -53,6 +53,7 @@ class TibberGridReward extends IPSModule
         $this->RegisterAttributeFloat('LastPower', 0.0);
         $this->RegisterAttributeString('EnergyDayMarker', '');
         $this->RegisterAttributeString('EnergyMonthMarker', '');
+        $this->RegisterAttributeString('EnergyLast', '{}');
 
         // eindeutige Subscription-ID je Instanz
         $this->RegisterPropertyInteger('SubID', rand(1000, 9999));
@@ -119,6 +120,7 @@ class TibberGridReward extends IPSModule
 
         // Wallbox-Aggregation einrichten
         $this->RegisterWallboxMessages();
+        $this->AccumulateEnergyCounters(); // Zähler-Basis setzen (kein Delta über die Downtime)
         $this->WriteAttributeFloat('LastEnergyTs', microtime(true));
         $this->SumWallboxes();
         $this->WriteAttributeFloat('LastPower', (float) $this->GetValueSafe('WallboxPowerTotal'));
@@ -172,10 +174,9 @@ class TibberGridReward extends IPSModule
                 $this->SendDebug(__FUNCTION__, 'Kernel bereit', 0);
                 break;
 
-            case VM_UPDATE: // Änderung einer Wallbox-Wirkleistung
+            case VM_UPDATE: // Änderung einer Wallbox-Leistung oder -Energie
                 $this->SumWallboxes();
-                $this->IntegrateEnergy();
-                $this->UpdateKPI();
+                $this->EnergyStep();
                 break;
         }
     }
@@ -586,10 +587,12 @@ class TibberGridReward extends IPSModule
         }
 
         foreach ($this->GetWallboxRows() as $r) {
-            $vid = (int) ($r['PowerID'] ?? 0);
-            if ($vid > 0 && IPS_VariableExists($vid)) {
-                $this->RegisterReference($vid);
-                $this->RegisterMessage($vid, VM_UPDATE);
+            foreach (['PowerID', 'EnergyID'] as $col) {
+                $vid = (int) ($r[$col] ?? 0);
+                if ($vid > 0 && IPS_VariableExists($vid)) {
+                    $this->RegisterReference($vid);
+                    $this->RegisterMessage($vid, VM_UPDATE);
+                }
             }
         }
     }
@@ -644,8 +647,66 @@ class TibberGridReward extends IPSModule
 
     public function EnergyTick(): void
     {
-        $this->IntegrateEnergy();
+        $this->EnergyStep();
+    }
+
+    /**
+     * Ein Energie-Schritt: bei vorhandenen Zählern reset-fest aus diesen, sonst per Integration.
+     */
+    private function EnergyStep(): void
+    {
+        if ($this->HasEnergyCounters()) {
+            $delta = $this->AccumulateEnergyCounters();
+            if ($delta > 0 && (bool) $this->GetValueSafe('Delivering')) {
+                $this->AddEnergy($delta);
+            }
+        } else {
+            $this->IntegrateEnergy();
+        }
         $this->UpdateKPI();
+    }
+
+    private function HasEnergyCounters(): bool
+    {
+        foreach ($this->GetWallboxRows() as $r) {
+            $eid = (int) ($r['EnergyID'] ?? 0);
+            if ($eid > 0 && IPS_VariableExists($eid)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Liefert die Energie-Zunahme (kWh) über alle Wallbox-Energiezähler seit dem letzten Aufruf.
+     * Reset-fest: springt ein Zähler zurück (neuer Ladezyklus), wird der neue Wert als Delta gewertet.
+     * Aktualisiert die gespeicherten Zählerstände immer (auch außerhalb eines Einsatzes).
+     */
+    private function AccumulateEnergyCounters(): float
+    {
+        $old = json_decode($this->ReadAttributeString('EnergyLast'), true);
+        if (!is_array($old)) {
+            $old = [];
+        }
+        $new = [];
+        $total = 0.0;
+
+        foreach ($this->GetWallboxRows() as $r) {
+            $eid = (int) ($r['EnergyID'] ?? 0);
+            if ($eid <= 0 || !IPS_VariableExists($eid)) {
+                continue;
+            }
+            $key = (string) $eid;
+            $cur = (float) GetValue($eid);
+            if (array_key_exists($key, $old)) {
+                $last = (float) $old[$key];
+                $total += ($cur >= $last) ? ($cur - $last) : $cur; // Rücksprung = neuer Zyklus
+            }
+            $new[$key] = $cur; // nur aktuelle Zähler behalten (entfernt automatisch alte)
+        }
+
+        $this->WriteAttributeString('EnergyLast', json_encode($new));
+        return $total;
     }
 
     private function IntegrateEnergy(): void
@@ -713,16 +774,28 @@ class TibberGridReward extends IPSModule
     {
         $this->SetValueIfExists('GridRewardEnergyEvent', 0.0);
         $this->SetValueIfExists('LastEventStart', time());
-        // Integrations-Basis neu setzen, damit keine Downtime mitgezählt wird
-        $this->WriteAttributeFloat('LastEnergyTs', microtime(true));
-        $this->WriteAttributeFloat('LastPower', (float) $this->GetValueSafe('WallboxPowerTotal'));
+        // Basis neu setzen, damit nichts vor dem Einsatz mitgezählt wird
+        if ($this->HasEnergyCounters()) {
+            $this->AccumulateEnergyCounters(); // Zählerstände als Basis merken (nicht zählen)
+        } else {
+            $this->WriteAttributeFloat('LastEnergyTs', microtime(true));
+            $this->WriteAttributeFloat('LastPower', (float) $this->GetValueSafe('WallboxPowerTotal'));
+        }
         $this->SetTimerInterval('EnergyTick', 30000);
         $this->SendDebug(__FUNCTION__, 'Grid-Reward-Einsatz gestartet', 0);
     }
 
     private function EndGridRewardEvent(): void
     {
-        $this->IntegrateEnergy(); // letzten Abschnitt verbuchen
+        // letzten Abschnitt verbuchen
+        if ($this->HasEnergyCounters()) {
+            $delta = $this->AccumulateEnergyCounters();
+            if ($delta > 0) {
+                $this->AddEnergy($delta);
+            }
+        } else {
+            $this->IntegrateEnergy();
+        }
         $this->SetTimerInterval('EnergyTick', 0);
         $end = time();
         $start = (int) $this->GetValueSafe('LastEventStart');

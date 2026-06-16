@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.8.0
+
+- **Energie aus Wallbox-Zählern (Ansatz C):** Je Wallbox kann zusätzlich der Energiezähler
+  „abgegebene Energie im Ladezyklus" (kWh) gewählt werden. Die Grid-Reward-Energie wird dann **exakt
+  aus diesem Zähler** als Delta berechnet – **reset-fest** (ein Zähler-Rücksprung = neuer Ladezyklus
+  wird als Delta gewertet) und nur während `Delivering` gezählt. Ohne Energiezähler bleibt die
+  bisherige Leistungs-Integration als Fallback.
+- Hand-off ans EMS bleibt **ereignisbasiert über Variablen** (EMS abonniert per `VM_UPDATE`); das
+  Modul schreibt bewusst nicht aktiv ins EMS (lose Kopplung).
+
 ## 1.7.1
 
 - **Fix:** Profil `~UnixTimestampInterval` existiert in IPS nicht → `ApplyChanges` brach ab. Die

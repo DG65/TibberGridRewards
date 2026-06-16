@@ -142,8 +142,11 @@ liefert). Das Modul:
   das EMS auf diesen Wert steuert,
 - stellt den **fertigen EMS-Sollwert** `GridRewardWallboxRequest` bereit (= Wallbox-Summe nur während
   eines Grid-Reward-Einsatzes, sonst `0`),
-- **integriert** die während eines Einsatzes verschobene **Energie** (Einsatz/heute/Monat/gesamt) und
-  rechnet daraus den **effektiven €/kWh-Wert** (`GridRewardEffectiveRate`),
+- erfasst die während eines Einsatzes verschobene **Energie** (Einsatz/heute/Monat/gesamt) und rechnet
+  daraus den **effektiven €/kWh-Wert** (`GridRewardEffectiveRate`). Wird je Wallbox optional ein
+  **Energiezähler** („abgegebene Energie im Ladezyklus", kWh) angegeben, kommt die Energie **exakt aus
+  diesem Zähler** (reset-fest gegen Zyklus-Rücksprünge); ohne Zähler wird sie aus der Leistung
+  integriert,
 - führt ein **Einsatz-Log** (Start/Ende/Dauer/Energie des letzten Einsatzes).
 
 Das EMS muss nur die Variablen mit stabilen Idents lesen (v. a. `Delivering` und
