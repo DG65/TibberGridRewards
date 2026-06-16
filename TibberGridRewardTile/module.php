@@ -273,6 +273,7 @@ class TibberGridRewardTile extends IPSModule
             return $configured;
         }
         $list = IPS_GetInstanceListByModuleID(self::SOURCE_MODULE);
+        $this->SendDebug(__FUNCTION__, 'SourceInstance=' . $configured . ' · gefundene TibberGridReward-Instanzen: ' . count($list) . ' [' . implode(', ', $list) . ']', 0);
         if (count($list) === 1) {
             return (int) $list[0];
         }
