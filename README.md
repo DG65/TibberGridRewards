@@ -94,7 +94,6 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 
 | Ident | Typ | Bedeutung |
 |---|---|---|
-| `Tile` | String (~HTMLBox) | Fertige **Kachel** (Status, Reward-Beträge, Flex-Geräte) für die Visualisierung |
 | `Delivering` | Boolean | **Primäres Signal** – `true`, solange ein Grid-Reward-Einsatz läuft |
 | `State` | String | `Verfügbar` / `Nicht verfügbar` / `Einsatz aktiv` |
 | `StateReason` | String | Roh-Begründung (`reason` / `kind` / `reasons`) – z. B. zur Richtungsbestimmung |
@@ -106,27 +105,22 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 
 ## Kachel für die Visualisierung
 
-Es gibt zwei Wege, den Status als Kachel anzuzeigen:
-
-### A) Eigenständiges Kachel-Modul `TibberGridRewardTile` (empfohlen, randlos)
-
-Die Bibliothek enthält ein **zweites Modul** `TibberGridRewardTile`. Es ist eine eigenständige
+Die Bibliothek enthält dafür ein **zweites Modul** `TibberGridRewardTile` – eine eigenständige
 HTML-SDK-Kachel, die die Tile **randlos** füllt (kein zusätzlicher Innenrahmen) und bewusst von der
-Datenlogik getrennt ist – ein Kachel-Problem kann die Datenverbindung nicht stören.
+Datenlogik getrennt ist (ein Kachel-Problem kann die Datenverbindung nicht stören).
 
 1. Instanz **TibberGridRewardTile** anlegen.
 2. Im Formular die **Datenquelle** (deine `TibberGridReward`-Instanz) wählen.
 3. Die Instanz-Kachel in der Kachel-Visualisierung auf eine Seite legen.
 
-Eigene Farbwähler unter **🎨 Kachel-Farben**. Aktualisierung erfolgt automatisch bei jeder
-Variablenänderung der Quelle.
+Standardmäßig ist der **Hintergrund transparent** und der Text passt sich automatisch dem hellen/dunklen
+IPS-Theme an – die Kachel fügt sich also nahtlos ein. Bei Bedarf lassen sich im Instanzformular **alle
+Farben** (Status, Hintergrund, Boxen, Text), die **Schriftart** und die **Schriftgröße** anpassen; der
+Button **„Farben & Schrift auf Standard zurücksetzen"** stellt alles wieder her. Die Kachel
+aktualisiert sich automatisch bei jeder Variablenänderung der Quelle.
 
-### B) `Tile`-Variable der Dateninstanz (einfach, mit Rahmen)
-
-Das Datenmodul erzeugt zusätzlich die Variable `Tile` (Profil `~HTMLBox`) mit derselben Status-Karte.
-Diese Variable einfach in die Kachel-Visualisierung ziehen. Schnell eingerichtet, hat in der
-Tile-Visualisierung aber den üblichen Kachel-Innenrahmen. Die Farben dafür liegen im Datenmodul unter
-**🎨 Kachel-Farben**.
+> Alle Kachel-Einstellungen liegen ausschließlich beim Modul `TibberGridRewardTile`. Das Datenmodul
+> `TibberGridReward` enthält keine Darstellungs-Optionen mehr.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 

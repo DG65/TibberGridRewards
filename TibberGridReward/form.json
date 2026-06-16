@@ -31,29 +31,8 @@
       ]
     },
     {
-      "type": "ExpansionPanel",
-      "caption": "🎨 Kachel-Farben",
-      "items": [
-        {
-          "type": "Label",
-          "caption": "Farben der Status-Kachel (Webfront). Änderungen erscheinen beim nächsten Status-Update."
-        },
-        {
-          "type": "SelectColor",
-          "name": "ColorActive",
-          "caption": "Einsatz aktiv"
-        },
-        {
-          "type": "SelectColor",
-          "name": "ColorAvailable",
-          "caption": "Verfügbar"
-        },
-        {
-          "type": "SelectColor",
-          "name": "ColorUnavailable",
-          "caption": "Nicht verfügbar"
-        }
-      ]
+      "type": "Label",
+      "caption": "Die Kachel-Darstellung erfolgt über das separate Modul „TibberGridRewardTile“ (eigene Instanz). Dort liegen auch alle Kachel-Einstellungen (Farben, Schrift)."
     }
   ],
   "actions": [

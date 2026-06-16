@@ -20,10 +20,12 @@ class TibberGridRewardTile extends IPSModule
     private const DEF_ACTIVE      = 0x27D07F;
     private const DEF_AVAILABLE   = 0x2BB3C0;
     private const DEF_UNAVAILABLE = 0x7A8A99;
-    private const DEF_BACKGROUND  = 0x161D26;
-    private const DEF_BOX         = 0x223141;
-    private const DEF_TEXT        = 0xFFFFFF;
-    private const DEF_TEXTMUTED   = 0x9FB0C0;
+    // -1 = keine feste Farbe -> Kachel übernimmt das IPS-Theme (transparenter Hintergrund,
+    //      Textfarbe automatisch hell/dunkel je nach Theme) – Verhalten wie bei da8ter.
+    private const DEF_BACKGROUND  = -1;
+    private const DEF_BOX         = -1;
+    private const DEF_TEXT        = -1;
+    private const DEF_TEXTMUTED   = -1;
     private const DEF_FONT        = 'system';
     private const DEF_SCALE       = 1.0;
 
@@ -141,11 +143,12 @@ class TibberGridRewardTile extends IPSModule
         $cAvail = $this->ColorHex($this->ReadPropertyInteger('ColorAvailable'), '#2bb3c0');
         $cUnavail = $this->ColorHex($this->ReadPropertyInteger('ColorUnavailable'), '#7a8a99');
 
+        // Leerer String = nicht gesetzt -> die Kachel nutzt den Theme-Default aus dem CSS.
         $style = [
-            'bg'        => $this->ColorHex($this->ReadPropertyInteger('ColorBackground'), '#161d26'),
-            'box'       => $this->ColorHex($this->ReadPropertyInteger('ColorBox'), '#223141'),
-            'text'      => $this->ColorHex($this->ReadPropertyInteger('ColorText'), '#ffffff'),
-            'textmuted' => $this->ColorHex($this->ReadPropertyInteger('ColorTextMuted'), '#9fb0c0'),
+            'bg'        => $this->ColorOrEmpty($this->ReadPropertyInteger('ColorBackground')),
+            'box'       => $this->ColorOrEmpty($this->ReadPropertyInteger('ColorBox')),
+            'text'      => $this->ColorOrEmpty($this->ReadPropertyInteger('ColorText')),
+            'textmuted' => $this->ColorOrEmpty($this->ReadPropertyInteger('ColorTextMuted')),
             'font'      => $this->FontStack($this->ReadPropertyString('FontFamily')),
             'scale'     => $this->FontScaleValue(),
         ];
@@ -300,6 +303,11 @@ class TibberGridRewardTile extends IPSModule
             return $fallback;
         }
         return sprintf('#%06X', $value & 0xFFFFFF);
+    }
+
+    private function ColorOrEmpty(int $value): string
+    {
+        return $value < 0 ? '' : sprintf('#%06X', $value & 0xFFFFFF);
     }
 
     private function FormatMoney(float $value, string $currency): string

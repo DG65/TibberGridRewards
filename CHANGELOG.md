@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.0
+
+- **Kachel-Defaults wie da8ter:** Hintergrund standardmäßig **transparent** (Kachel übernimmt das
+  IPS-Theme), Textfarben passen sich automatisch hell/dunkel an (`prefers-color-scheme`). Eigene
+  Farben überschreiben das weiterhin; „Zurücksetzen" stellt die Theme-Defaults wieder her.
+- **Aufräumen Datenmodul:** Alle Kachel-/Darstellungs-Einstellungen liegen jetzt ausschließlich beim
+  Modul `TibberGridRewardTile`. Das Datenmodul `TibberGridReward` hat keine Farb-Optionen mehr und
+  erzeugt keine `Tile`-Variable (`~HTMLBox`) mehr (wird beim Übernehmen automatisch entfernt).
+
 ## 1.4.0
 
 - Kachel-Modul `TibberGridRewardTile` voll anpassbar:
