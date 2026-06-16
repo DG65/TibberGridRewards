@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.7.0
+
+- **Wallbox-Aggregation & EMS-Übergabe** im Datenmodul:
+  - Liste beliebig vieler Wallbox-Wirkleistungen (Variable + Faktor), laufende Summe
+    `WallboxPowerTotal` (ereignisbasiert per `VM_UPDATE`).
+  - Alters-/Plausibilitätsprüfung (`DataValid`, Schwelle „lädt" → `WallboxCharging`).
+  - Fertiger EMS-Sollwert `GridRewardWallboxRequest` (= Summe während Grid-Reward, sonst 0).
+- **Energie-Statistik:** während eines Einsatzes verschobene Energie (`GridRewardEnergyEvent/Today/
+  Month/Total`) plus effektiver €/kWh-Wert (`GridRewardEffectiveRate`).
+- **Einsatz-Log:** `LastEventStart/End/Duration/Energy`.
+- **Kachel** zeigt zusätzlich die Wallbox-Gesamtleistung.
+
 ## 1.6.0
 
 - Kachel-Modul erkennt die Datenquelle jetzt **automatisch**, wenn es genau eine

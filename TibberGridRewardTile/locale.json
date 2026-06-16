@@ -8,7 +8,8 @@
       "No source selected": "Keine Datenquelle gewählt",
       "Available": "Verfügbar",
       "Unavailable": "Nicht verfügbar",
-      "Delivering": "Einsatz aktiv"
+      "Delivering": "Einsatz aktiv",
+      "Wallboxes": "Wallboxen"
     }
   }
 }

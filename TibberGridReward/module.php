@@ -39,11 +39,20 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyString('Password', '');
         $this->RegisterPropertyString('Home_ID', '0');
 
+        // Wallbox-Wirkleistung aggregieren
+        $this->RegisterPropertyString('Wallboxes', '[]');
+        $this->RegisterPropertyFloat('ChargingThreshold', 100.0);
+        $this->RegisterPropertyInteger('MaxAge', 120);
+
         $this->RegisterAttributeString('JWT', '');
         $this->RegisterAttributeInteger('JWT_Exp', 0);
         $this->RegisterAttributeString('Homes', '');
         $this->RegisterAttributeInteger('Parent_IO', 0);
         $this->RegisterAttributeInteger('WTCounter', 0);
+        $this->RegisterAttributeFloat('LastEnergyTs', 0.0);
+        $this->RegisterAttributeFloat('LastPower', 0.0);
+        $this->RegisterAttributeString('EnergyDayMarker', '');
+        $this->RegisterAttributeString('EnergyMonthMarker', '');
 
         // eindeutige Subscription-ID je Instanz
         $this->RegisterPropertyInteger('SubID', rand(1000, 9999));
@@ -54,6 +63,7 @@ class TibberGridReward extends IPSModule
         $this->RegisterTimer('TokenRefresh', 0, 'TIBBERGR_TokenRefresh($_IPS[\'TARGET\']);');
         $this->RegisterTimer('StartWatchdog', 0, 'TIBBERGR_StartWatchdog($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ReloginSequence', 0, 'TIBBERGR_ReloginSequence($_IPS[\'TARGET\']);');
+        $this->RegisterTimer('EnergyTick', 0, 'TIBBERGR_EnergyTick($_IPS[\'TARGET\']);');
     }
 
     public function Destroy()
@@ -76,6 +86,7 @@ class TibberGridReward extends IPSModule
             $this->SetTimerInterval('TokenRefresh', 0);
             $this->SetTimerInterval('StartWatchdog', 0);
             $this->SetTimerInterval('ReloginSequence', 0);
+            $this->SetTimerInterval('EnergyTick', 0);
             $this->SetStatus(104); // inaktiv
             return;
         }
@@ -105,6 +116,14 @@ class TibberGridReward extends IPSModule
         $this->RegisterMessageParent();
         $this->UpdateConfigurationForParent();
         $this->ScheduleTokenRefresh();
+
+        // Wallbox-Aggregation einrichten
+        $this->RegisterWallboxMessages();
+        $this->WriteAttributeFloat('LastEnergyTs', microtime(true));
+        $this->SumWallboxes();
+        $this->WriteAttributeFloat('LastPower', (float) $this->GetValueSafe('WallboxPowerTotal'));
+        $this->UpdateKPI();
+        $this->SetTimerInterval('EnergyTick', ((bool) $this->GetValueSafe('Delivering')) ? 30000 : 0);
     }
 
     public function GetConfigurationForm()
@@ -151,6 +170,12 @@ class TibberGridReward extends IPSModule
                 break;
             case KR_READY:
                 $this->SendDebug(__FUNCTION__, 'Kernel bereit', 0);
+                break;
+
+            case VM_UPDATE: // Änderung einer Wallbox-Wirkleistung
+                $this->SumWallboxes();
+                $this->IntegrateEnergy();
+                $this->UpdateKPI();
                 break;
         }
     }
@@ -400,6 +425,8 @@ class TibberGridReward extends IPSModule
         $state = $status['state'] ?? [];
         [$stateName, $stateReason, $delivering] = $this->ParseState($state);
 
+        $wasDelivering = (bool) $this->GetValueSafe('Delivering');
+
         $this->SetValueIfExists('Delivering', $delivering);
         $this->SetValueIfExists('State', $stateName);
         $this->SetValueIfExists('StateReason', $stateReason);
@@ -410,6 +437,17 @@ class TibberGridReward extends IPSModule
         $devices = $status['flexDevices'] ?? [];
         $this->SetValueIfExists('FlexDeviceCount', count($devices));
         $this->SetValueIfExists('FlexDevices', $this->FormatFlexDevices($devices));
+
+        // Einsatz-Flanken (Event-Log + Energiezählung)
+        if ($delivering && !$wasDelivering) {
+            $this->StartGridRewardEvent();
+        } elseif (!$delivering && $wasDelivering) {
+            $this->EndGridRewardEvent();
+        }
+
+        // Netzbezug-Sollwert + KPI neu berechnen
+        $this->SumWallboxes();
+        $this->UpdateKPI();
 
         $this->SendDebug(__FUNCTION__, 'State=' . $stateName . ' Delivering=' . ($delivering ? '1' : '0') . ' Reason=' . $stateReason, 0);
     }
@@ -472,6 +510,12 @@ class TibberGridReward extends IPSModule
             IPS_SetVariableProfileIcon('Tibber.Reward', 'Euro');
             IPS_SetVariableProfileText('Tibber.Reward', '', ' €');
         }
+        if (!IPS_VariableProfileExists('Tibber.RatePerKWh')) {
+            IPS_CreateVariableProfile('Tibber.RatePerKWh', VARIABLETYPE_FLOAT);
+            IPS_SetVariableProfileDigits('Tibber.RatePerKWh', 3);
+            IPS_SetVariableProfileIcon('Tibber.RatePerKWh', 'Euro');
+            IPS_SetVariableProfileText('Tibber.RatePerKWh', '', ' €/kWh');
+        }
     }
 
     private function RegisterVariables(): void
@@ -488,6 +532,25 @@ class TibberGridReward extends IPSModule
         $this->MaintainVariable('Currency', $this->Translate('Currency'), VARIABLETYPE_STRING, '', $pos++, true);
         $this->MaintainVariable('FlexDeviceCount', $this->Translate('Flex devices'), VARIABLETYPE_INTEGER, '', $pos++, true);
         $this->MaintainVariable('FlexDevices', $this->Translate('Flex device list'), VARIABLETYPE_STRING, '', $pos++, true);
+
+        // Wallbox-Aggregation / EMS
+        $this->MaintainVariable('WallboxPowerTotal', $this->Translate('Wallbox power (total)'), VARIABLETYPE_FLOAT, '~Watt', $pos++, true);
+        $this->MaintainVariable('GridRewardWallboxRequest', $this->Translate('Grid import request'), VARIABLETYPE_FLOAT, '~Watt', $pos++, true);
+        $this->MaintainVariable('WallboxCharging', $this->Translate('Wallbox charging'), VARIABLETYPE_BOOLEAN, '~Switch', $pos++, true);
+        $this->MaintainVariable('DataValid', $this->Translate('Wallbox data valid'), VARIABLETYPE_BOOLEAN, '~Switch', $pos++, true);
+
+        // Energie-Statistik
+        $this->MaintainVariable('GridRewardEnergyEvent', $this->Translate('Grid reward energy (event)'), VARIABLETYPE_FLOAT, '~Electricity', $pos++, true);
+        $this->MaintainVariable('GridRewardEnergyToday', $this->Translate('Grid reward energy (today)'), VARIABLETYPE_FLOAT, '~Electricity', $pos++, true);
+        $this->MaintainVariable('GridRewardEnergyMonth', $this->Translate('Grid reward energy (month)'), VARIABLETYPE_FLOAT, '~Electricity', $pos++, true);
+        $this->MaintainVariable('GridRewardEnergyTotal', $this->Translate('Grid reward energy (total)'), VARIABLETYPE_FLOAT, '~Electricity', $pos++, true);
+        $this->MaintainVariable('GridRewardEffectiveRate', $this->Translate('Effective reward rate'), VARIABLETYPE_FLOAT, 'Tibber.RatePerKWh', $pos++, true);
+
+        // Einsatz-Log
+        $this->MaintainVariable('LastEventStart', $this->Translate('Last event start'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $pos++, true);
+        $this->MaintainVariable('LastEventEnd', $this->Translate('Last event end'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $pos++, true);
+        $this->MaintainVariable('LastEventDuration', $this->Translate('Last event duration'), VARIABLETYPE_INTEGER, '~UnixTimestampInterval', $pos++, true);
+        $this->MaintainVariable('LastEventEnergy', $this->Translate('Last event energy'), VARIABLETYPE_FLOAT, '~Electricity', $pos++, true);
     }
 
     private function SetValueIfExists(string $ident, $value): void
@@ -496,6 +559,163 @@ class TibberGridReward extends IPSModule
         if ($id !== false && $id > 0) {
             $this->SetValue($ident, $value);
         }
+    }
+
+    private function GetValueSafe(string $ident)
+    {
+        $id = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+        return ($id !== false && $id > 0) ? GetValue($id) : 0;
+    }
+
+    // ---------------------------------------------------------------------
+    // Wallbox-Aggregation, Energie-Statistik, Einsatz-Log
+    // ---------------------------------------------------------------------
+
+    private function RegisterWallboxMessages(): void
+    {
+        // alte VM_UPDATE-Registrierungen und Referenzen lösen
+        foreach ($this->GetMessageList() as $senderID => $messages) {
+            foreach ($messages as $msg) {
+                if ($msg === VM_UPDATE) {
+                    $this->UnregisterMessage($senderID, VM_UPDATE);
+                }
+            }
+        }
+        foreach ($this->GetReferenceList() as $ref) {
+            $this->UnregisterReference($ref);
+        }
+
+        foreach ($this->GetWallboxRows() as $r) {
+            $vid = (int) ($r['PowerID'] ?? 0);
+            if ($vid > 0 && IPS_VariableExists($vid)) {
+                $this->RegisterReference($vid);
+                $this->RegisterMessage($vid, VM_UPDATE);
+            }
+        }
+    }
+
+    private function GetWallboxRows(): array
+    {
+        $rows = json_decode($this->ReadPropertyString('Wallboxes'), true);
+        if (!is_array($rows)) {
+            return [];
+        }
+        // nur aktive Zeilen
+        return array_values(array_filter($rows, static function ($r) {
+            return !empty($r['Active']);
+        }));
+    }
+
+    private function SumWallboxes(): void
+    {
+        $maxAge = $this->ReadPropertyInteger('MaxAge');
+        $total = 0.0;
+        $allValid = true;
+        $anyActive = false;
+
+        foreach ($this->GetWallboxRows() as $r) {
+            $vid = (int) ($r['PowerID'] ?? 0);
+            if ($vid <= 0 || !IPS_VariableExists($vid)) {
+                $allValid = false;
+                continue;
+            }
+            $anyActive = true;
+            $factor = (float) ($r['Factor'] ?? 1);
+            if ($factor == 0.0) {
+                $factor = 1.0;
+            }
+            if ($maxAge > 0) {
+                $info = IPS_GetVariable($vid);
+                if ((time() - (int) $info['VariableUpdated']) > $maxAge) {
+                    $allValid = false; // veralteter Messwert -> nicht mitzählen
+                    continue;
+                }
+            }
+            $total += (float) GetValue($vid) * $factor;
+        }
+
+        $this->SetValueIfExists('WallboxPowerTotal', $total);
+        $this->SetValueIfExists('WallboxCharging', $total > $this->ReadPropertyFloat('ChargingThreshold'));
+        $this->SetValueIfExists('DataValid', $anyActive ? $allValid : true);
+
+        $delivering = (bool) $this->GetValueSafe('Delivering');
+        $this->SetValueIfExists('GridRewardWallboxRequest', $delivering ? $total : 0.0);
+    }
+
+    public function EnergyTick(): void
+    {
+        $this->IntegrateEnergy();
+        $this->UpdateKPI();
+    }
+
+    private function IntegrateEnergy(): void
+    {
+        $now = microtime(true);
+        $lastTs = $this->ReadAttributeFloat('LastEnergyTs');
+        $lastPower = $this->ReadAttributeFloat('LastPower');
+
+        if ((bool) $this->GetValueSafe('Delivering') && $lastTs > 0 && $lastPower > 0) {
+            $dt = $now - $lastTs;
+            if ($dt > 0 && $dt < 7200) { // Plausibilität: keine Riesensprünge (z.B. nach Downtime)
+                $kwh = $lastPower * $dt / 3600.0 / 1000.0; // W·s -> kWh
+                if ($kwh > 0) {
+                    $this->AddEnergy($kwh);
+                }
+            }
+        }
+
+        $this->WriteAttributeFloat('LastEnergyTs', $now);
+        $this->WriteAttributeFloat('LastPower', (float) $this->GetValueSafe('WallboxPowerTotal'));
+    }
+
+    private function AddEnergy(float $kwh): void
+    {
+        $day = date('Y-m-d');
+        $month = date('Y-m');
+        if ($this->ReadAttributeString('EnergyDayMarker') !== $day) {
+            $this->SetValueIfExists('GridRewardEnergyToday', 0.0);
+            $this->WriteAttributeString('EnergyDayMarker', $day);
+        }
+        if ($this->ReadAttributeString('EnergyMonthMarker') !== $month) {
+            $this->SetValueIfExists('GridRewardEnergyMonth', 0.0);
+            $this->WriteAttributeString('EnergyMonthMarker', $month);
+        }
+
+        $this->SetValueIfExists('GridRewardEnergyEvent', (float) $this->GetValueSafe('GridRewardEnergyEvent') + $kwh);
+        $this->SetValueIfExists('GridRewardEnergyToday', (float) $this->GetValueSafe('GridRewardEnergyToday') + $kwh);
+        $this->SetValueIfExists('GridRewardEnergyMonth', (float) $this->GetValueSafe('GridRewardEnergyMonth') + $kwh);
+        $this->SetValueIfExists('GridRewardEnergyTotal', (float) $this->GetValueSafe('GridRewardEnergyTotal') + $kwh);
+    }
+
+    private function UpdateKPI(): void
+    {
+        $energyMonth = (float) $this->GetValueSafe('GridRewardEnergyMonth');
+        $reward = (float) $this->GetValueSafe('RewardCurrentMonth');
+        $rate = $energyMonth > 0.01 ? $reward / $energyMonth : 0.0;
+        $this->SetValueIfExists('GridRewardEffectiveRate', $rate);
+    }
+
+    private function StartGridRewardEvent(): void
+    {
+        $this->SetValueIfExists('GridRewardEnergyEvent', 0.0);
+        $this->SetValueIfExists('LastEventStart', time());
+        // Integrations-Basis neu setzen, damit keine Downtime mitgezählt wird
+        $this->WriteAttributeFloat('LastEnergyTs', microtime(true));
+        $this->WriteAttributeFloat('LastPower', (float) $this->GetValueSafe('WallboxPowerTotal'));
+        $this->SetTimerInterval('EnergyTick', 30000);
+        $this->SendDebug(__FUNCTION__, 'Grid-Reward-Einsatz gestartet', 0);
+    }
+
+    private function EndGridRewardEvent(): void
+    {
+        $this->IntegrateEnergy(); // letzten Abschnitt verbuchen
+        $this->SetTimerInterval('EnergyTick', 0);
+        $end = time();
+        $start = (int) $this->GetValueSafe('LastEventStart');
+        $this->SetValueIfExists('LastEventEnd', $end);
+        $this->SetValueIfExists('LastEventDuration', $start > 0 ? max(0, $end - $start) : 0);
+        $this->SetValueIfExists('LastEventEnergy', (float) $this->GetValueSafe('GridRewardEnergyEvent'));
+        $this->SendDebug(__FUNCTION__, 'Grid-Reward-Einsatz beendet', 0);
     }
 
     // ---------------------------------------------------------------------

@@ -108,6 +108,30 @@
             letter-spacing: .5px;
         }
 
+        .tgr-wallbox {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 9px;
+            background: var(--box);
+            border-radius: 10px;
+            padding: 9px 11px;
+            margin-bottom: 12px;
+        }
+
+        .tgr-wb-label {
+            font-size: calc(11px * var(--scale));
+            color: var(--textmuted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .tgr-wb-val {
+            font-size: calc(16px * var(--scale));
+            font-weight: 700;
+            color: var(--text);
+        }
+
         .tgr-devices {
             display: flex;
             flex-direction: column;
@@ -167,6 +191,10 @@
                 <div class="tgr-reward-lbl" id="total-label"></div>
             </div>
         </div>
+        <div class="tgr-wallbox" id="wallbox-row" style="display:none">
+            <span class="tgr-wb-label" id="wallbox-label"></span>
+            <span class="tgr-wb-val" id="wallbox-val"></span>
+        </div>
         <div class="tgr-devices" id="devices"></div>
     </div>
 
@@ -202,6 +230,15 @@
             document.getElementById('total-label').textContent = data.totalLabel || '';
 
             document.getElementById('card').classList.toggle('live', data.cls === 'live');
+
+            var wbRow = document.getElementById('wallbox-row');
+            if (data.wallbox) {
+                document.getElementById('wallbox-label').textContent = data.wallboxLabel || '';
+                document.getElementById('wallbox-val').textContent = data.wallbox;
+                wbRow.style.display = '';
+            } else {
+                wbRow.style.display = 'none';
+            }
 
             var dev = document.getElementById('devices');
             dev.textContent = '';

@@ -186,19 +186,36 @@ class TibberGridRewardTile extends IPSModule
         $month = $this->FormatMoney((float) $this->ReadSourceValue($src, 'RewardCurrentMonth', 0), $cur);
         $total = $this->FormatMoney((float) $this->ReadSourceValue($src, 'RewardAllTime', 0), $cur);
 
+        // Wallbox-Gesamtleistung (nur wenn die Quelle die Variable hat)
+        $wallbox = '';
+        $wbVid = @IPS_GetObjectIDByIdent('WallboxPowerTotal', $src);
+        if ($wbVid !== false && $wbVid > 0) {
+            $wallbox = $this->FormatPower((float) GetValue($wbVid));
+        }
+
         $devices = $this->ParseDevices((string) $this->ReadSourceValue($src, 'FlexDevices', ''), $cActive, $cAvail, $cUnavail);
 
         return json_encode(array_merge($style, [
-            'stateLabel' => $stateText !== '' ? $stateText : $this->Translate('No data yet'),
-            'cls'        => $cls,
-            'accent'     => $accent,
-            'month'      => $month,
-            'total'      => $total,
-            'monthLabel' => $this->Translate('This month'),
-            'totalLabel' => $this->Translate('Total'),
-            'emptyLabel' => $this->Translate('No flex devices'),
-            'devices'    => $devices,
+            'stateLabel'   => $stateText !== '' ? $stateText : $this->Translate('No data yet'),
+            'cls'          => $cls,
+            'accent'       => $accent,
+            'month'        => $month,
+            'total'        => $total,
+            'monthLabel'   => $this->Translate('This month'),
+            'totalLabel'   => $this->Translate('Total'),
+            'wallbox'      => $wallbox,
+            'wallboxLabel' => $this->Translate('Wallboxes'),
+            'emptyLabel'   => $this->Translate('No flex devices'),
+            'devices'      => $devices,
         ]));
+    }
+
+    private function FormatPower(float $w): string
+    {
+        if (abs($w) >= 1000) {
+            return number_format($w / 1000, 2, ',', '.') . ' kW';
+        }
+        return number_format($w, 0, ',', '.') . ' W';
     }
 
     /**

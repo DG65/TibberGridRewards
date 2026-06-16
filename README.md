@@ -102,6 +102,13 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 | `Currency` | String | Währung |
 | `FlexDeviceCount` | Integer | Anzahl der Flex-Geräte |
 | `FlexDevices` | String | Lesbare Liste der Flex-Geräte inkl. Einzelstatus |
+| `WallboxPowerTotal` | Float (W) | Summe der Wirkleistungen aller gewählten Wallboxen |
+| `GridRewardWallboxRequest` | Float (W) | **EMS-Sollwert**: = Wallbox-Summe während `Delivering`, sonst `0` |
+| `WallboxCharging` | Boolean | `true`, wenn die Summe über der Schwelle „lädt" liegt |
+| `DataValid` | Boolean | `false`, wenn ein Wallbox-Messwert fehlt oder veraltet ist |
+| `GridRewardEnergyEvent/Today/Month/Total` | Float (kWh) | Während Grid-Reward verschobene Energie je Zeitraum |
+| `GridRewardEffectiveRate` | Float (€/kWh) | KPI: Reward (Monat) ÷ verschobene Energie (Monat) |
+| `LastEventStart/End/Duration/Energy` | — | Einsatz-Log des letzten Grid-Reward-Einsatzes |
 
 ## Kachel für die Visualisierung
 
@@ -122,6 +129,27 @@ aktualisiert sich automatisch bei jeder Variablenänderung der Quelle.
 
 > Alle Kachel-Einstellungen liegen ausschließlich beim Modul `TibberGridRewardTile`. Das Datenmodul
 > `TibberGridReward` enthält keine Darstellungs-Optionen mehr.
+
+## Wallbox-Leistung & EMS-Übergabe
+
+Im Datenmodul lassen sich unter **🔌 Wallboxen** die Wirkleistungs-Datenpunkte beliebig vieler
+Wallboxen auswählen (Liste, je Zeile eine Variable + Faktor, z. B. `1000` falls eine Quelle in kW
+liefert). Das Modul:
+
+- **summiert** die aktiven Wirkleistungen laufend (ereignisbasiert per `VM_UPDATE`) →
+  `WallboxPowerTotal`,
+- prüft die Messwerte auf **Alter/Plausibilität** (`DataValid`, Schwelle einstellbar) – wichtig, weil
+  das EMS auf diesen Wert steuert,
+- stellt den **fertigen EMS-Sollwert** `GridRewardWallboxRequest` bereit (= Wallbox-Summe nur während
+  eines Grid-Reward-Einsatzes, sonst `0`),
+- **integriert** die während eines Einsatzes verschobene **Energie** (Einsatz/heute/Monat/gesamt) und
+  rechnet daraus den **effektiven €/kWh-Wert** (`GridRewardEffectiveRate`),
+- führt ein **Einsatz-Log** (Start/Ende/Dauer/Energie des letzten Einsatzes).
+
+Das EMS muss nur die Variablen mit stabilen Idents lesen (v. a. `Delivering` und
+`GridRewardWallboxRequest`). Die eigentliche Wechselrichter-/Speichersteuerung bleibt bewusst im EMS –
+dieses Modul liefert ausschließlich saubere Eingangswerte. Die Wallbox-Gesamtleistung wird zusätzlich
+in der Kachel angezeigt.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 

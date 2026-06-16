@@ -24,7 +24,20 @@
       "smart charging": "Smart-Laden",
       "smart mode": "Smart-Modus",
       "yes": "ja",
-      "no": "nein"
+      "no": "nein",
+      "Wallbox power (total)": "Wallbox-Leistung (gesamt)",
+      "Grid import request": "Netzbezug-Anforderung",
+      "Wallbox charging": "Wallbox lädt",
+      "Wallbox data valid": "Wallbox-Daten gültig",
+      "Grid reward energy (event)": "Grid-Reward-Energie (Einsatz)",
+      "Grid reward energy (today)": "Grid-Reward-Energie (heute)",
+      "Grid reward energy (month)": "Grid-Reward-Energie (Monat)",
+      "Grid reward energy (total)": "Grid-Reward-Energie (gesamt)",
+      "Effective reward rate": "Effektiver Reward-Satz",
+      "Last event start": "Letzter Einsatz: Start",
+      "Last event end": "Letzter Einsatz: Ende",
+      "Last event duration": "Letzter Einsatz: Dauer",
+      "Last event energy": "Letzter Einsatz: Energie"
     }
   }
 }
