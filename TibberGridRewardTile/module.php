@@ -107,22 +107,21 @@ class TibberGridRewardTile extends IPSModule
     }
 
     /**
-     * Button-Aktion: alle Farben und Schrifteinstellungen auf Standard zurücksetzen.
+     * Button-Aktion: alle Farben und Schrifteinstellungen auf Standard setzen. Über UpdateFormField
+     * werden die Werte nur im offenen Formular gesetzt – der Benutzer prüft sie und bestätigt selbst
+     * per „Änderungen übernehmen".
      */
     public function ResetStyle(): void
     {
-        $id = $this->InstanceID;
-        IPS_SetProperty($id, 'ColorActive', self::DEF_ACTIVE);
-        IPS_SetProperty($id, 'ColorAvailable', self::DEF_AVAILABLE);
-        IPS_SetProperty($id, 'ColorUnavailable', self::DEF_UNAVAILABLE);
-        IPS_SetProperty($id, 'ColorBackground', self::DEF_BACKGROUND);
-        IPS_SetProperty($id, 'ColorBox', self::DEF_BOX);
-        IPS_SetProperty($id, 'ColorText', self::DEF_TEXT);
-        IPS_SetProperty($id, 'ColorTextMuted', self::DEF_TEXTMUTED);
-        IPS_SetProperty($id, 'FontFamily', self::DEF_FONT);
-        IPS_SetProperty($id, 'FontScale', self::DEF_SCALE);
-        IPS_ApplyChanges($id);
-        $this->ReloadForm();
+        $this->UpdateFormField('ColorActive', 'value', self::DEF_ACTIVE);
+        $this->UpdateFormField('ColorAvailable', 'value', self::DEF_AVAILABLE);
+        $this->UpdateFormField('ColorUnavailable', 'value', self::DEF_UNAVAILABLE);
+        $this->UpdateFormField('ColorBackground', 'value', self::DEF_BACKGROUND);
+        $this->UpdateFormField('ColorBox', 'value', self::DEF_BOX);
+        $this->UpdateFormField('ColorText', 'value', self::DEF_TEXT);
+        $this->UpdateFormField('ColorTextMuted', 'value', self::DEF_TEXTMUTED);
+        $this->UpdateFormField('FontFamily', 'value', self::DEF_FONT);
+        $this->UpdateFormField('FontScale', 'value', self::DEF_SCALE);
     }
 
     public function GetVisualizationTile()

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.1
+
+- Review-Feedback (Symcon) umgesetzt:
+  - `vendor` in beiden `module.json` von `DG65` auf **`Tibber`** geändert (Feld ist für den
+    Hersteller des zugehörigen Systems gedacht, nicht für den Modulentwickler).
+  - `ResetStyle` setzt die Werte jetzt per **`UpdateFormField`** nur im offenen Formular (statt
+    `IPS_SetProperty` + `IPS_ApplyChanges`); der Benutzer prüft sie und bestätigt selbst mit
+    „Änderungen übernehmen".
+
 ## 1.8.0
 
 - **Energie aus Wallbox-Zählern (Ansatz C):** Je Wallbox kann zusätzlich der Energiezähler
