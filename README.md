@@ -19,6 +19,8 @@ eigene Automationen auslösen lassen.
 - [Installation](#installation)
 - [Konfiguration](#konfiguration)
 - [Variablen](#variablen)
+- [Kachel für die Visualisierung](#kachel-für-die-visualisierung)
+- [Wallbox-Leistung & EMS-Übergabe](#wallbox-leistung--ems-übergabe)
 - [Anwendungsbeispiel: Speicher & Wallbox steuern](#anwendungsbeispiel-speicher--wallbox-steuern)
 - [FAQ](#faq)
 - [Fehlersuche](#fehlersuche)
@@ -62,16 +64,23 @@ Ohne registriertes Flex-Gerät bleibt der Status dauerhaft `Unavailable`.
 
 ## Installation
 
+**Variante A – Module Store (empfohlen):** In der Verwaltungskonsole den **Module Store** öffnen und
+nach **„Tibber Grid Rewards"** suchen → installieren.
+
+**Variante B – manuell über GitHub:**
+
 1. In IP-Symcon **Modulverwaltung** öffnen (Objektbaum → Kerninstanzen → *Modules* bzw. über die
    Verwaltungskonsole).
 2. **Modul hinzufügen** und die URL eintragen:
    ```
    https://github.com/DG65/TibberGridRewards
    ```
-3. Über **Instanz hinzufügen** eine Instanz vom Typ **TibberGridReward** anlegen. Der benötigte
-   WebSocket-Client (I/O) als Parent wird dabei **automatisch** erzeugt.
 
-> Module nie manuell in den `modules/`-Ordner kopieren – immer über die Modulverwaltung hinzufügen.
+Danach über **Instanz hinzufügen** eine Instanz vom Typ **TibberGridReward** anlegen (der benötigte
+WebSocket-Client als Parent wird automatisch erzeugt). Für die Kachel zusätzlich eine Instanz
+**TibberGridRewardTile** anlegen (siehe [Kachel](#kachel-für-die-visualisierung)).
+
+> Module nie manuell in den `modules/`-Ordner kopieren – immer über Module Store/Modulverwaltung.
 
 ## Konfiguration
 
@@ -198,6 +207,13 @@ sondern nur über die App-API, die einen App-Login (E-Mail/Passwort) verlangt.
 **Steuert das Modul meinen Wechselrichter/Speicher direkt?**
 Nein. Es liefert nur den Status. Die Gerätesteuerung baust du in IP-Symcon selbst, ausgelöst durch die
 `Delivering`-Variable.
+
+**Warum brauche ich überhaupt ein Steuersignal fürs EMS?**
+Während eines Grid-Reward-Einsatzes wird das Auto bewusst aus dem Netz geladen. Ohne Gegenmaßnahme
+würde ein Hausspeicher diese Last aber aus der **Batterie** decken – das Ergebnis: die Batterie ist
+leer **und** die aus dem Netz „belohnte" Energie ist gar nicht aus dem Netz gekommen. Mit dem
+`Delivering`-Signal (und `GridRewardWallboxRequest`) sorgt dein EMS dafür, dass der Speicher in diesem
+Zeitraum **nicht entlädt** und die Wallbox-Last aus dem Netz kommt – nur so trägt der Einsatz wirklich.
 
 **`State` bleibt dauerhaft „Nicht verfügbar" – warum?**
 Dann nimmt aktuell kein unterstütztes Gerät an Grid Rewards teil bzw. ist keines registriert. Ohne
