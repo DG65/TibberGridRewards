@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9.2
+
+- `GridRewardMode` nutzt jetzt **beide** Signale: „Grid Reward aktiv" (`Delivering`) als Einsatz-Flag
+  **plus** Richtung aus dem Status-Detail (`excess`/`shortage`). Erkenntnis aus den Logs: `Delivering`
+  ist bei `excess` **und** `shortage` aktiv; nur die Richtung unterscheidet sich. Ergebnis:
+  0 = kein Einsatz, 1 = Einsatz + excess (Laden), 2 = Einsatz + shortage (Drosselung).
+
 ## 1.9.1
 
 - **`GridRewardMode` jetzt aus dem echten API-Parameter** (Status-Detail `kind`/`reason`): `excess`

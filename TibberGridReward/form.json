@@ -90,7 +90,7 @@
         },
         {
           "type": "Label",
-          "caption": "Modus (Variable „Grid-Reward-Modus“) für das EMS, aus dem Tibber-Status-Detail abgeleitet: 0 = kein Einsatz, 1 = Laden aus Netz (excess → Batterie-Entladung sperren, Last aus Netz), 2 = Drosselung (shortage → Wallbox aus, Netzbezug minimieren)."
+          "caption": "Modus (Variable „Grid-Reward-Modus“) für das EMS, aus „Grid Reward aktiv“ + Status-Detail: 0 = kein Einsatz, 1 = Laden aus Netz (Einsatz + excess → Batterie-Entladung sperren, Last aus Netz), 2 = Drosselung (Einsatz + shortage → Wallbox aus, Netzbezug minimieren)."
         }
       ]
     },

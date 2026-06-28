@@ -167,15 +167,16 @@ in der Kachel angezeigt.
 ### Richtung des Einsatzes (`GridRewardMode`)
 
 Ein Grid-Reward-Einsatz hat **zwei Richtungen**, die im EMS **gegensätzliche** Reaktionen erfordern:
-Tibber lädt eine Wallbox bei **Netzüberschuss** (laden) oder drosselt sie bei **Knappheit** (aus). Die
-Richtung steht im Tibber-Status-Detail (`StateReason` = `kind`/`reason`): **`excess`** bzw.
-**`shortage`**. Das Modul wertet das aus und stellt es als `GridRewardMode` bereit:
+Tibber lädt eine Wallbox bei **Netzüberschuss** (laden) oder drosselt sie bei **Knappheit** (aus). Ob
+überhaupt ein Einsatz läuft, sagt `Delivering` („Grid Reward aktiv"); die **Richtung** steht im
+Status-Detail (`StateReason`): **`excess`** bzw. **`shortage`**. Beides kombiniert das Modul zu
+`GridRewardMode`:
 
-| Wert | Status-Detail | Bedeutung | Typische EMS-Reaktion |
+| Wert | Bedingung | Bedeutung | Typische EMS-Reaktion |
 |---|---|---|---|
-| `0` | `available` / `noFlex…` | Kein Einsatz | Normalbetrieb |
-| `1` | `excess` | Laden aus Netz | Batterie-Entladung sperren, Wallbox-Last aus dem Netz |
-| `2` | `shortage` | Drosselung | Netzbezug minimieren, Batterie/PV nutzen |
+| `0` | kein Einsatz (`available` / `noFlex…`) | Kein Einsatz | Normalbetrieb |
+| `1` | Einsatz + `excess` | Laden aus Netz | Batterie-Entladung sperren, Wallbox-Last aus dem Netz |
+| `2` | Einsatz + `shortage` | Drosselung | Netzbezug minimieren, Batterie/PV nutzen |
 
 Energiezählung, Sollwert (`GridRewardWallboxRequest`) und Einsatz-Log beziehen sich auf den Modus
 **„Laden aus Netz" (excess)** – das ist der Zeitraum, in dem tatsächlich für die Vergütung aus dem Netz

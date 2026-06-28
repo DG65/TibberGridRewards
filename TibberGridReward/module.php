@@ -428,7 +428,7 @@ class TibberGridReward extends IPSModule
         [$stateName, $stateReason, $delivering] = $this->ParseState($state);
 
         $wasMode = (int) $this->GetValueSafe('GridRewardMode');
-        $mode = $this->MapReasonToMode($stateReason);
+        $mode = $this->DetermineMode($delivering, $stateReason);
 
         $this->SetValueIfExists('Delivering', $delivering);
         $this->SetValueIfExists('State', $stateName);
@@ -659,21 +659,20 @@ class TibberGridReward extends IPSModule
     }
 
     /**
-     * Richtung des Einsatzes aus dem Tibber-Status-Detail (kind/reason):
-     *   excess  -> 1 (Laden aus Netz, Netzüberschuss)
-     *   shortage-> 2 (Drosselung, Knappheit)
-     *   sonst   -> 0 (kein Einsatz: available / noFlex / …)
+     * Modus aus „Grid Reward aktiv" (Delivering) + Richtung im Status-Detail (kind/reason):
+     *   kein Einsatz (Delivering=false)       -> 0
+     *   Einsatz + shortage (Knappheit)        -> 2 (Drosselung, Wallbox aus)
+     *   Einsatz + excess/unspezifiziert       -> 1 (Laden aus Netz)
      */
-    private function MapReasonToMode(string $reason): int
+    private function DetermineMode(bool $delivering, string $reason): int
     {
-        $r = strtolower($reason);
-        if (strpos($r, 'excess') !== false) {
-            return 1;
+        if (!$delivering) {
+            return 0;
         }
-        if (strpos($r, 'shortage') !== false) {
+        if (strpos(strtolower($reason), 'shortage') !== false) {
             return 2;
         }
-        return 0;
+        return 1;
     }
 
     public function EnergyTick(): void
