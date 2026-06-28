@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.0
+
+- **Neuer Datenpunkt `GridRewardMode`** (Enum 0/1/2): Ein Grid-Reward-Einsatz kann „Laden" (Wallbox an)
+  oder „Drosselung" (Wallbox aus) bedeuten – die API meldet das nicht. Das Modul bestimmt die Richtung
+  aus dem **tatsächlichen Wallbox-Stromfluss** und stellt sie als EMS-Modus bereit (0 = kein Einsatz,
+  1 = Laden aus Netz, 2 = Drosselung).
+- **Entprellzeit** (`ModeSettleTime`, Standard 60 s) gegen Flackern beim Hochlaufen der Ladung;
+  Profil `Tibber.GridRewardMode` mit farbigen Assoziationen.
+
 ## 1.8.1
 
 - Review-Feedback (Symcon) umgesetzt:

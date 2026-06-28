@@ -87,6 +87,16 @@
           "name": "MaxAge",
           "caption": "Max. Alter der Messwerte (s, 0 = aus)",
           "digits": 0
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "ModeSettleTime",
+          "caption": "Entprellzeit Modus (s, 0 = sofort)",
+          "digits": 0
+        },
+        {
+          "type": "Label",
+          "caption": "Modus (Variable „Grid-Reward-Modus“) für das EMS: 0 = kein Einsatz, 1 = Laden aus Netz (Wallbox lädt → Batterie-Entladung sperren), 2 = Drosselung (Wallbox aus → Netzbezug minimieren). Die Entprellzeit verhindert ein Umschalten auf „Drosselung“ während des Hochlaufens der Ladung."
         }
       ]
     },

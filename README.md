@@ -113,6 +113,7 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 | `FlexDevices` | String | Lesbare Liste der Flex-Geräte inkl. Einzelstatus |
 | `WallboxPowerTotal` | Float (W) | Summe der Wirkleistungen aller gewählten Wallboxen |
 | `GridRewardWallboxRequest` | Float (W) | **EMS-Sollwert**: = Wallbox-Summe während `Delivering`, sonst `0` |
+| `GridRewardMode` | Integer | **EMS-Modus**: 0 = kein Einsatz · 1 = Laden aus Netz · 2 = Drosselung (aus dem Stromfluss bestimmt) |
 | `WallboxCharging` | Boolean | `true`, wenn die Summe über der Schwelle „lädt" liegt |
 | `DataValid` | Boolean | `false`, wenn ein Wallbox-Messwert fehlt oder veraltet ist |
 | `GridRewardEnergyEvent/Today/Month/Total` | Float (kWh) | Während Grid-Reward verschobene Energie je Zeitraum |
@@ -162,6 +163,22 @@ Das EMS muss nur die Variablen mit stabilen Idents lesen (v. a. `Delivering` und
 `GridRewardWallboxRequest`). Die eigentliche Wechselrichter-/Speichersteuerung bleibt bewusst im EMS –
 dieses Modul liefert ausschließlich saubere Eingangswerte. Die Wallbox-Gesamtleistung wird zusätzlich
 in der Kachel angezeigt.
+
+### Richtung des Einsatzes (`GridRewardMode`)
+
+Ein Grid-Reward-Einsatz hat **zwei Richtungen**, die im EMS **gegensätzliche** Reaktionen erfordern:
+Tibber kann eine Wallbox **einschalten** (Netzüberschuss → laden) oder **ausschalten** (Knappheit →
+drosseln). Die API meldet das aber **nicht** – beides ist nur „Delivering". Daher bestimmt das Modul
+die Richtung aus dem **tatsächlichen Wallbox-Stromfluss** und stellt sie als `GridRewardMode` bereit:
+
+| Wert | Bedeutung | Typische EMS-Reaktion |
+|---|---|---|
+| `0` | Kein Einsatz | Normalbetrieb |
+| `1` | Laden aus Netz (Wallbox lädt) | Batterie-Entladung sperren, Wallbox-Last aus dem Netz |
+| `2` | Drosselung (Wallbox aus) | Netzbezug minimieren, Batterie/PV nutzen |
+
+Die **Entprellzeit** (Standard 60 s) hält den Modus während des Hochlaufens der Ladung auf „Laden",
+damit das EMS nicht flackert; erst nach anhaltendem Stillstand wird auf „Drosselung" gewechselt.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 

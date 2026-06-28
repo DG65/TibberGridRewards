@@ -43,6 +43,7 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyString('Wallboxes', '[]');
         $this->RegisterPropertyFloat('ChargingThreshold', 100.0);
         $this->RegisterPropertyInteger('MaxAge', 120);
+        $this->RegisterPropertyInteger('ModeSettleTime', 60);
 
         $this->RegisterAttributeString('JWT', '');
         $this->RegisterAttributeInteger('JWT_Exp', 0);
@@ -54,6 +55,7 @@ class TibberGridReward extends IPSModule
         $this->RegisterAttributeString('EnergyDayMarker', '');
         $this->RegisterAttributeString('EnergyMonthMarker', '');
         $this->RegisterAttributeString('EnergyLast', '{}');
+        $this->RegisterAttributeFloat('LastChargingTs', 0.0);
 
         // eindeutige Subscription-ID je Instanz
         $this->RegisterPropertyInteger('SubID', rand(1000, 9999));
@@ -517,6 +519,13 @@ class TibberGridReward extends IPSModule
             IPS_SetVariableProfileIcon('Tibber.RatePerKWh', 'Euro');
             IPS_SetVariableProfileText('Tibber.RatePerKWh', '', ' €/kWh');
         }
+        if (!IPS_VariableProfileExists('Tibber.GridRewardMode')) {
+            IPS_CreateVariableProfile('Tibber.GridRewardMode', VARIABLETYPE_INTEGER);
+            IPS_SetVariableProfileIcon('Tibber.GridRewardMode', 'Energy');
+            IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 0, $this->Translate('No event'), '', 0x9FB0C0);
+            IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 1, $this->Translate('Charge from grid'), '', 0x27D07F);
+            IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 2, $this->Translate('Curtailment'), '', 0x2BB3C0);
+        }
     }
 
     private function RegisterVariables(): void
@@ -537,6 +546,7 @@ class TibberGridReward extends IPSModule
         // Wallbox-Aggregation / EMS
         $this->MaintainVariable('WallboxPowerTotal', $this->Translate('Wallbox power (total)'), VARIABLETYPE_FLOAT, '~Watt', $pos++, true);
         $this->MaintainVariable('GridRewardWallboxRequest', $this->Translate('Grid import request'), VARIABLETYPE_FLOAT, '~Watt', $pos++, true);
+        $this->MaintainVariable('GridRewardMode', $this->Translate('Grid reward mode'), VARIABLETYPE_INTEGER, 'Tibber.GridRewardMode', $pos++, true);
         $this->MaintainVariable('WallboxCharging', $this->Translate('Wallbox charging'), VARIABLETYPE_BOOLEAN, '~Switch', $pos++, true);
         $this->MaintainVariable('DataValid', $this->Translate('Wallbox data valid'), VARIABLETYPE_BOOLEAN, '~Switch', $pos++, true);
 
@@ -637,16 +647,50 @@ class TibberGridReward extends IPSModule
             $total += (float) GetValue($vid) * $factor;
         }
 
+        $charging = $total > $this->ReadPropertyFloat('ChargingThreshold');
         $this->SetValueIfExists('WallboxPowerTotal', $total);
-        $this->SetValueIfExists('WallboxCharging', $total > $this->ReadPropertyFloat('ChargingThreshold'));
+        $this->SetValueIfExists('WallboxCharging', $charging);
         $this->SetValueIfExists('DataValid', $anyActive ? $allValid : true);
 
         $delivering = (bool) $this->GetValueSafe('Delivering');
         $this->SetValueIfExists('GridRewardWallboxRequest', $delivering ? $total : 0.0);
+
+        // Modus aus Delivering + tatsächlichem Wallbox-Stromfluss bestimmen
+        $now = time();
+        if ($charging) {
+            $this->WriteAttributeFloat('LastChargingTs', (float) $now);
+        }
+        $this->SetValueIfExists('GridRewardMode', $this->DetermineMode($delivering, $charging, $now));
+    }
+
+    /**
+     * Modus aus Einsatz-Status und Wallbox-Stromfluss:
+     *   0 = kein Einsatz, 1 = Laden aus Netz (Wallbox lädt), 2 = Drosselung (Wallbox aus).
+     * Die Entprellzeit (ModeSettleTime) hält „Laden" während des Hochlaufens/kurzer Pausen,
+     * damit das EMS nicht flackert; erst nach anhaltendem Stillstand wird auf „Drosselung" gewechselt.
+     */
+    private function DetermineMode(bool $delivering, bool $charging, int $now): int
+    {
+        if (!$delivering) {
+            return 0;
+        }
+        if ($charging) {
+            return 1;
+        }
+        $settle = $this->ReadPropertyInteger('ModeSettleTime');
+        if ($settle <= 0) {
+            return 2;
+        }
+        $lastCharge = (int) $this->ReadAttributeFloat('LastChargingTs');
+        $eventStart = (int) $this->GetValueSafe('LastEventStart');
+        $idleLongEnough = ($now - $lastCharge) >= $settle;
+        $eventOldEnough = $eventStart > 0 ? (($now - $eventStart) >= $settle) : true;
+        return ($idleLongEnough && $eventOldEnough) ? 2 : 1;
     }
 
     public function EnergyTick(): void
     {
+        $this->SumWallboxes(); // hält u. a. den GridRewardMode aktuell (Wechsel auf „Drosselung")
         $this->EnergyStep();
     }
 
