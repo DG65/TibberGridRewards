@@ -43,7 +43,6 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyString('Wallboxes', '[]');
         $this->RegisterPropertyFloat('ChargingThreshold', 100.0);
         $this->RegisterPropertyInteger('MaxAge', 120);
-        $this->RegisterPropertyInteger('ModeSettleTime', 60);
 
         $this->RegisterAttributeString('JWT', '');
         $this->RegisterAttributeInteger('JWT_Exp', 0);
@@ -55,7 +54,7 @@ class TibberGridReward extends IPSModule
         $this->RegisterAttributeString('EnergyDayMarker', '');
         $this->RegisterAttributeString('EnergyMonthMarker', '');
         $this->RegisterAttributeString('EnergyLast', '{}');
-        $this->RegisterAttributeFloat('LastChargingTs', 0.0);
+        $this->RegisterAttributeBoolean('EventActive', false);
 
         // eindeutige Subscription-ID je Instanz
         $this->RegisterPropertyInteger('SubID', rand(1000, 9999));
@@ -127,7 +126,7 @@ class TibberGridReward extends IPSModule
         $this->SumWallboxes();
         $this->WriteAttributeFloat('LastPower', (float) $this->GetValueSafe('WallboxPowerTotal'));
         $this->UpdateKPI();
-        $this->SetTimerInterval('EnergyTick', ((bool) $this->GetValueSafe('Delivering')) ? 30000 : 0);
+        $this->SetTimerInterval('EnergyTick', $this->ReadAttributeBoolean('EventActive') ? 30000 : 0);
     }
 
     public function GetConfigurationForm()
@@ -428,11 +427,13 @@ class TibberGridReward extends IPSModule
         $state = $status['state'] ?? [];
         [$stateName, $stateReason, $delivering] = $this->ParseState($state);
 
-        $wasDelivering = (bool) $this->GetValueSafe('Delivering');
+        $wasMode = (int) $this->GetValueSafe('GridRewardMode');
+        $mode = $this->MapReasonToMode($stateReason);
 
         $this->SetValueIfExists('Delivering', $delivering);
         $this->SetValueIfExists('State', $stateName);
         $this->SetValueIfExists('StateReason', $stateReason);
+        $this->SetValueIfExists('GridRewardMode', $mode);
         $this->SetValueIfExists('Currency', (string) ($status['rewardCurrency'] ?? ''));
         $this->SetValueIfExists('RewardCurrentMonth', (float) ($status['rewardCurrentMonth'] ?? 0));
         $this->SetValueIfExists('RewardAllTime', (float) ($status['rewardAllTime'] ?? 0));
@@ -441,10 +442,10 @@ class TibberGridReward extends IPSModule
         $this->SetValueIfExists('FlexDeviceCount', count($devices));
         $this->SetValueIfExists('FlexDevices', $this->FormatFlexDevices($devices));
 
-        // Einsatz-Flanken (Event-Log + Energiezählung)
-        if ($delivering && !$wasDelivering) {
+        // Einsatz = „Laden aus Netz" (excess). Flanken steuern Event-Log + Energiezählung.
+        if ($mode === 1 && $wasMode !== 1) {
             $this->StartGridRewardEvent();
-        } elseif (!$delivering && $wasDelivering) {
+        } elseif ($mode !== 1 && $wasMode === 1) {
             $this->EndGridRewardEvent();
         }
 
@@ -652,56 +653,43 @@ class TibberGridReward extends IPSModule
         $this->SetValueIfExists('WallboxCharging', $charging);
         $this->SetValueIfExists('DataValid', $anyActive ? $allValid : true);
 
-        $delivering = (bool) $this->GetValueSafe('Delivering');
-        $this->SetValueIfExists('GridRewardWallboxRequest', $delivering ? $total : 0.0);
-
-        // Modus aus Delivering + tatsächlichem Wallbox-Stromfluss bestimmen
-        $now = time();
-        if ($charging) {
-            $this->WriteAttributeFloat('LastChargingTs', (float) $now);
-        }
-        $this->SetValueIfExists('GridRewardMode', $this->DetermineMode($delivering, $charging, $now));
+        // Sollwert nur im „Laden aus Netz"-Modus (excess); sonst soll nichts aus dem Netz geholt werden.
+        $mode = (int) $this->GetValueSafe('GridRewardMode');
+        $this->SetValueIfExists('GridRewardWallboxRequest', $mode === 1 ? $total : 0.0);
     }
 
     /**
-     * Modus aus Einsatz-Status und Wallbox-Stromfluss:
-     *   0 = kein Einsatz, 1 = Laden aus Netz (Wallbox lädt), 2 = Drosselung (Wallbox aus).
-     * Die Entprellzeit (ModeSettleTime) hält „Laden" während des Hochlaufens/kurzer Pausen,
-     * damit das EMS nicht flackert; erst nach anhaltendem Stillstand wird auf „Drosselung" gewechselt.
+     * Richtung des Einsatzes aus dem Tibber-Status-Detail (kind/reason):
+     *   excess  -> 1 (Laden aus Netz, Netzüberschuss)
+     *   shortage-> 2 (Drosselung, Knappheit)
+     *   sonst   -> 0 (kein Einsatz: available / noFlex / …)
      */
-    private function DetermineMode(bool $delivering, bool $charging, int $now): int
+    private function MapReasonToMode(string $reason): int
     {
-        if (!$delivering) {
-            return 0;
-        }
-        if ($charging) {
+        $r = strtolower($reason);
+        if (strpos($r, 'excess') !== false) {
             return 1;
         }
-        $settle = $this->ReadPropertyInteger('ModeSettleTime');
-        if ($settle <= 0) {
+        if (strpos($r, 'shortage') !== false) {
             return 2;
         }
-        $lastCharge = (int) $this->ReadAttributeFloat('LastChargingTs');
-        $eventStart = (int) $this->GetValueSafe('LastEventStart');
-        $idleLongEnough = ($now - $lastCharge) >= $settle;
-        $eventOldEnough = $eventStart > 0 ? (($now - $eventStart) >= $settle) : true;
-        return ($idleLongEnough && $eventOldEnough) ? 2 : 1;
+        return 0;
     }
 
     public function EnergyTick(): void
     {
-        $this->SumWallboxes(); // hält u. a. den GridRewardMode aktuell (Wechsel auf „Drosselung")
         $this->EnergyStep();
     }
 
     /**
      * Ein Energie-Schritt: bei vorhandenen Zählern reset-fest aus diesen, sonst per Integration.
+     * Gezählt wird nur bei aktivem Einsatz (EventActive); die Basis wird immer fortgeschrieben.
      */
     private function EnergyStep(): void
     {
         if ($this->HasEnergyCounters()) {
             $delta = $this->AccumulateEnergyCounters();
-            if ($delta > 0 && (bool) $this->GetValueSafe('Delivering')) {
+            if ($delta > 0 && $this->ReadAttributeBoolean('EventActive')) {
                 $this->AddEnergy($delta);
             }
         } else {
@@ -759,7 +747,7 @@ class TibberGridReward extends IPSModule
         $lastTs = $this->ReadAttributeFloat('LastEnergyTs');
         $lastPower = $this->ReadAttributeFloat('LastPower');
 
-        if ((bool) $this->GetValueSafe('Delivering') && $lastTs > 0 && $lastPower > 0) {
+        if ($this->ReadAttributeBoolean('EventActive') && $lastTs > 0 && $lastPower > 0) {
             $dt = $now - $lastTs;
             if ($dt > 0 && $dt < 7200) { // Plausibilität: keine Riesensprünge (z.B. nach Downtime)
                 $kwh = $lastPower * $dt / 3600.0 / 1000.0; // W·s -> kWh
@@ -816,6 +804,7 @@ class TibberGridReward extends IPSModule
 
     private function StartGridRewardEvent(): void
     {
+        $this->WriteAttributeBoolean('EventActive', true);
         $this->SetValueIfExists('GridRewardEnergyEvent', 0.0);
         $this->SetValueIfExists('LastEventStart', time());
         // Basis neu setzen, damit nichts vor dem Einsatz mitgezählt wird
@@ -826,12 +815,12 @@ class TibberGridReward extends IPSModule
             $this->WriteAttributeFloat('LastPower', (float) $this->GetValueSafe('WallboxPowerTotal'));
         }
         $this->SetTimerInterval('EnergyTick', 30000);
-        $this->SendDebug(__FUNCTION__, 'Grid-Reward-Einsatz gestartet', 0);
+        $this->SendDebug(__FUNCTION__, 'Grid-Reward-Einsatz (Laden aus Netz) gestartet', 0);
     }
 
     private function EndGridRewardEvent(): void
     {
-        // letzten Abschnitt verbuchen
+        // letzten Abschnitt verbuchen (EventActive noch true), danach Einsatz schließen
         if ($this->HasEnergyCounters()) {
             $delta = $this->AccumulateEnergyCounters();
             if ($delta > 0) {
@@ -840,6 +829,7 @@ class TibberGridReward extends IPSModule
         } else {
             $this->IntegrateEnergy();
         }
+        $this->WriteAttributeBoolean('EventActive', false);
         $this->SetTimerInterval('EnergyTick', 0);
         $end = time();
         $start = (int) $this->GetValueSafe('LastEventStart');

@@ -105,15 +105,15 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 |---|---|---|
 | `Delivering` | Boolean | **Primäres Signal** – `true`, solange ein Grid-Reward-Einsatz läuft |
 | `State` | String | `Verfügbar` / `Nicht verfügbar` / `Einsatz aktiv` |
-| `StateReason` | String | Roh-Begründung (`reason` / `kind` / `reasons`) – z. B. zur Richtungsbestimmung |
+| `StateReason` | String | Roh-Begründung (`kind` / `reason` / `reasons`) – u. a. `excess` (Überschuss) / `shortage` (Knappheit) → Richtung |
 | `RewardCurrentMonth` | Float | Vergütung im aktuellen Monat |
 | `RewardAllTime` | Float | Vergütung gesamt |
 | `Currency` | String | Währung |
 | `FlexDeviceCount` | Integer | Anzahl der Flex-Geräte |
 | `FlexDevices` | String | Lesbare Liste der Flex-Geräte inkl. Einzelstatus |
 | `WallboxPowerTotal` | Float (W) | Summe der Wirkleistungen aller gewählten Wallboxen |
-| `GridRewardWallboxRequest` | Float (W) | **EMS-Sollwert**: = Wallbox-Summe während `Delivering`, sonst `0` |
-| `GridRewardMode` | Integer | **EMS-Modus**: 0 = kein Einsatz · 1 = Laden aus Netz · 2 = Drosselung (aus dem Stromfluss bestimmt) |
+| `GridRewardWallboxRequest` | Float (W) | **EMS-Sollwert**: = Wallbox-Summe im Modus „Laden aus Netz" (excess), sonst `0` |
+| `GridRewardMode` | Integer | **EMS-Modus** aus dem Status-Detail: 0 = kein Einsatz · 1 = Laden aus Netz (excess) · 2 = Drosselung (shortage) |
 | `WallboxCharging` | Boolean | `true`, wenn die Summe über der Schwelle „lädt" liegt |
 | `DataValid` | Boolean | `false`, wenn ein Wallbox-Messwert fehlt oder veraltet ist |
 | `GridRewardEnergyEvent/Today/Month/Total` | Float (kWh) | Während Grid-Reward verschobene Energie je Zeitraum |
@@ -150,8 +150,8 @@ liefert). Das Modul:
   `WallboxPowerTotal`,
 - prüft die Messwerte auf **Alter/Plausibilität** (`DataValid`, Schwelle einstellbar) – wichtig, weil
   das EMS auf diesen Wert steuert,
-- stellt den **fertigen EMS-Sollwert** `GridRewardWallboxRequest` bereit (= Wallbox-Summe nur während
-  eines Grid-Reward-Einsatzes, sonst `0`),
+- stellt den **fertigen EMS-Sollwert** `GridRewardWallboxRequest` bereit (= Wallbox-Summe nur im Modus
+  „Laden aus Netz"/excess, sonst `0`) sowie die Richtung als `GridRewardMode` (siehe unten),
 - erfasst die während eines Einsatzes verschobene **Energie** (Einsatz/heute/Monat/gesamt) und rechnet
   daraus den **effektiven €/kWh-Wert** (`GridRewardEffectiveRate`). Wird je Wallbox optional ein
   **Energiezähler** („abgegebene Energie im Ladezyklus", kWh) angegeben, kommt die Energie **exakt aus
@@ -167,18 +167,19 @@ in der Kachel angezeigt.
 ### Richtung des Einsatzes (`GridRewardMode`)
 
 Ein Grid-Reward-Einsatz hat **zwei Richtungen**, die im EMS **gegensätzliche** Reaktionen erfordern:
-Tibber kann eine Wallbox **einschalten** (Netzüberschuss → laden) oder **ausschalten** (Knappheit →
-drosseln). Die API meldet das aber **nicht** – beides ist nur „Delivering". Daher bestimmt das Modul
-die Richtung aus dem **tatsächlichen Wallbox-Stromfluss** und stellt sie als `GridRewardMode` bereit:
+Tibber lädt eine Wallbox bei **Netzüberschuss** (laden) oder drosselt sie bei **Knappheit** (aus). Die
+Richtung steht im Tibber-Status-Detail (`StateReason` = `kind`/`reason`): **`excess`** bzw.
+**`shortage`**. Das Modul wertet das aus und stellt es als `GridRewardMode` bereit:
 
-| Wert | Bedeutung | Typische EMS-Reaktion |
-|---|---|---|
-| `0` | Kein Einsatz | Normalbetrieb |
-| `1` | Laden aus Netz (Wallbox lädt) | Batterie-Entladung sperren, Wallbox-Last aus dem Netz |
-| `2` | Drosselung (Wallbox aus) | Netzbezug minimieren, Batterie/PV nutzen |
+| Wert | Status-Detail | Bedeutung | Typische EMS-Reaktion |
+|---|---|---|---|
+| `0` | `available` / `noFlex…` | Kein Einsatz | Normalbetrieb |
+| `1` | `excess` | Laden aus Netz | Batterie-Entladung sperren, Wallbox-Last aus dem Netz |
+| `2` | `shortage` | Drosselung | Netzbezug minimieren, Batterie/PV nutzen |
 
-Die **Entprellzeit** (Standard 60 s) hält den Modus während des Hochlaufens der Ladung auf „Laden",
-damit das EMS nicht flackert; erst nach anhaltendem Stillstand wird auf „Drosselung" gewechselt.
+Energiezählung, Sollwert (`GridRewardWallboxRequest`) und Einsatz-Log beziehen sich auf den Modus
+**„Laden aus Netz" (excess)** – das ist der Zeitraum, in dem tatsächlich für die Vergütung aus dem Netz
+geladen wird.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 

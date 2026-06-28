@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.9.1
+
+- **`GridRewardMode` jetzt aus dem echten API-Parameter** (Status-Detail `kind`/`reason`): `excess`
+  → 1 (Laden aus Netz), `shortage` → 2 (Drosselung), sonst 0. Ersetzt die bisherige
+  Stromfluss-Heuristik samt Entprellzeit – zuverlässiger und ohne Konfiguration.
+- **„Aktiver Einsatz" = `excess`** (statt `Delivering`): Energiezählung, Sollwert
+  `GridRewardWallboxRequest` und Einsatz-Log beziehen sich jetzt auf den Modus „Laden aus Netz".
+  Hintergrund: Tibber meldet die Richtung über `excess`/`shortage`, während `Delivering` teils gar
+  nicht auftritt.
+- Robusteres Energie-Gating über `EventActive` (verbucht auch den letzten Abschnitt beim Einsatz-Ende).
+
 ## 1.9.0
 
 - **Neuer Datenpunkt `GridRewardMode`** (Enum 0/1/2): Ein Grid-Reward-Einsatz kann „Laden" (Wallbox an)
