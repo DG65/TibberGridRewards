@@ -112,8 +112,8 @@ Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert
 | `FlexDeviceCount` | Integer | Anzahl der Flex-Geräte |
 | `FlexDevices` | String | Lesbare Liste der Flex-Geräte inkl. Einzelstatus |
 | `WallboxPowerTotal` | Float (W) | Summe der Wirkleistungen aller gewählten Wallboxen |
-| `GridRewardWallboxRequest` | Float (W) | **EMS-Sollwert**: = Wallbox-Summe im Modus „Laden aus Netz" (excess), sonst `0` |
-| `GridRewardMode` | Integer | **EMS-Modus** aus dem Status-Detail: 0 = kein Einsatz · 1 = Laden aus Netz (excess) · 2 = Drosselung (shortage) |
+| `GridRewardWallboxRequest` | Float (W) | **EMS-Sollwert**: Wallbox-Leistung, wenn das Auto lädt (Modus 1 oder 2), sonst `0` |
+| `GridRewardMode` | Integer | **EMS-Modus** (ein Wert): 0 Normal · 1 Auto lädt · 2 Grid Reward Laden · 3 Drosselung |
 | `WallboxCharging` | Boolean | `true`, wenn die Summe über der Schwelle „lädt" liegt |
 | `DataValid` | Boolean | `false`, wenn ein Wallbox-Messwert fehlt oder veraltet ist |
 | `GridRewardEnergyEvent/Today/Month/Total` | Float (kWh) | Während Grid-Reward verschobene Energie je Zeitraum |
@@ -164,23 +164,39 @@ Das EMS muss nur die Variablen mit stabilen Idents lesen (v. a. `Delivering` und
 dieses Modul liefert ausschließlich saubere Eingangswerte. Die Wallbox-Gesamtleistung wird zusätzlich
 in der Kachel angezeigt.
 
-### Richtung des Einsatzes (`GridRewardMode`)
+### EMS-Modus (`GridRewardMode`) – ein Wert für die Steuerung
 
-Ein Grid-Reward-Einsatz hat **zwei Richtungen**, die im EMS **gegensätzliche** Reaktionen erfordern:
-Tibber lädt eine Wallbox bei **Netzüberschuss** (laden) oder drosselt sie bei **Knappheit** (aus). Ob
-überhaupt ein Einsatz läuft, sagt `Delivering` („Grid Reward aktiv"); die **Richtung** steht im
-Status-Detail (`StateReason`): **`excess`** bzw. **`shortage`**. Beides kombiniert das Modul zu
-`GridRewardMode`:
+`GridRewardMode` fasst alle relevanten Situationen in **einem** Wert zusammen, aus dem das EMS direkt
+die Aktion ableitet. Er wird aus dem Grid-Reward-Status (`Delivering` + `StateReason`) **und** dem
+Ladezustand der Wallboxen gebildet:
 
-| Wert | Bedingung | Bedeutung | Typische EMS-Reaktion |
-|---|---|---|---|
-| `0` | kein Einsatz (`available` / `noFlex…`) | Kein Einsatz | Normalbetrieb |
-| `1` | Einsatz + `excess` | Laden aus Netz | Batterie-Entladung sperren, Wallbox-Last aus dem Netz |
-| `2` | Einsatz + `shortage` | Drosselung | Netzbezug minimieren, Batterie/PV nutzen |
+| Wert | Situation | Typische EMS-Reaktion |
+|---|---|---|
+| `0` | **Normal** – kein Einsatz, Auto lädt nicht | Eigenverbrauch normal; Batterie nach Preis bewirtschaften |
+| `1` | **Auto lädt, kein Reward** (Smart-Charge / Zwangsbeladen / Freigabe) | Wallbox-Last **aus dem Netz** (Batterie-Entladung um Wallbox-Leistung kürzen) |
+| `2` | **Grid Reward: Laden** (`excess`) | wie 1, **plus** Batterie aus Netz laden (belohnt); Batterie **nie** entladen |
+| `3` | **Grid Reward: Drosselung** (`shortage`) | Auto aus, Haus aus Batterie/PV → Netzbezug minimieren |
 
-Energiezählung, Sollwert (`GridRewardWallboxRequest`) und Einsatz-Log beziehen sich auf den Modus
-**„Laden aus Netz" (excess)** – das ist der Zeitraum, in dem tatsächlich für die Vergütung aus dem Netz
-geladen wird.
+Die Fälle „Preis ok / Freigabe" und „Zwangsbeladen" fallen bewusst in **Wert 1** – die EMS-Aktion
+(Strom aus dem Netz) ist dort identisch. `GridRewardWallboxRequest` ist die zugehörige Leistung
+(aktiv bei Wert 1 **und** 2). Energiezählung und Einsatz-Log beziehen sich auf **`excess` (Wert 2)** –
+den Zeitraum, in dem für die Vergütung tatsächlich aus dem Netz geladen wird.
+
+### Wirtschaftlich optimal steuern (Strategie fürs EMS)
+
+Grundregel: **Jede kWh aus der billigsten Quelle.** Grenzkosten: PV (~0) < Batterie-**Wert** (= teuerste
+Stunde, für die du sie aufhebst) vs. Netzpreis − Grid-Reward.
+
+- **Auto laden ⇒ immer aus dem Netz** (es lädt nur in günstigen/belohnten Zeiten; die Batterie ist für
+  den teuren Abend wertvoller). → Modus 1 und 2.
+- **`excess` (Modus 2):** Netzbezug ist belohnt → Auto **und** Batterie aus dem Netz laden, Batterie nie
+  entladen.
+- **`shortage` (Modus 3):** Netzbezug wird „bestraft" (Reward fürs Reduzieren) → Auto aus, Haus aus
+  Batterie/PV.
+- **Batterie-Arbitrage** (wann aus Netz laden / entladen) macht das **EMS anhand der Tibber-Preise**
+  (TibberV2): laden wenn `Preis + Verluste < Batteriewert`, entladen wenn `Preis − Reward >
+  Batteriewert`. Dieses Modul liefert dafür die Grid-Reward-Schicht; den Preis-Forecast steuert
+  TibberV2 bei.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 

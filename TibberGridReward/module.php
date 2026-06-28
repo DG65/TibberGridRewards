@@ -427,13 +427,9 @@ class TibberGridReward extends IPSModule
         $state = $status['state'] ?? [];
         [$stateName, $stateReason, $delivering] = $this->ParseState($state);
 
-        $wasMode = (int) $this->GetValueSafe('GridRewardMode');
-        $mode = $this->DetermineMode($delivering, $stateReason);
-
         $this->SetValueIfExists('Delivering', $delivering);
         $this->SetValueIfExists('State', $stateName);
         $this->SetValueIfExists('StateReason', $stateReason);
-        $this->SetValueIfExists('GridRewardMode', $mode);
         $this->SetValueIfExists('Currency', (string) ($status['rewardCurrency'] ?? ''));
         $this->SetValueIfExists('RewardCurrentMonth', (float) ($status['rewardCurrentMonth'] ?? 0));
         $this->SetValueIfExists('RewardAllTime', (float) ($status['rewardAllTime'] ?? 0));
@@ -442,14 +438,7 @@ class TibberGridReward extends IPSModule
         $this->SetValueIfExists('FlexDeviceCount', count($devices));
         $this->SetValueIfExists('FlexDevices', $this->FormatFlexDevices($devices));
 
-        // Einsatz = „Laden aus Netz" (excess). Flanken steuern Event-Log + Energiezählung.
-        if ($mode === 1 && $wasMode !== 1) {
-            $this->StartGridRewardEvent();
-        } elseif ($mode !== 1 && $wasMode === 1) {
-            $this->EndGridRewardEvent();
-        }
-
-        // Netzbezug-Sollwert + KPI neu berechnen
+        // Modus (nutzt Delivering/StateReason + Ladezustand), Event-Flanken, Sollwert + KPI
         $this->SumWallboxes();
         $this->UpdateKPI();
 
@@ -523,10 +512,12 @@ class TibberGridReward extends IPSModule
         if (!IPS_VariableProfileExists('Tibber.GridRewardMode')) {
             IPS_CreateVariableProfile('Tibber.GridRewardMode', VARIABLETYPE_INTEGER);
             IPS_SetVariableProfileIcon('Tibber.GridRewardMode', 'Energy');
-            IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 0, $this->Translate('No event'), '', 0x9FB0C0);
-            IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 1, $this->Translate('Charge from grid'), '', 0x27D07F);
-            IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 2, $this->Translate('Curtailment'), '', 0x2BB3C0);
         }
+        // Assoziationen außerhalb der Existenzprüfung, damit Bestandsinstallationen aktualisiert werden
+        IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 0, $this->Translate('Normal'), '', 0x9FB0C0);
+        IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 1, $this->Translate('Car charging'), '', 0x2BB3C0);
+        IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 2, $this->Translate('Grid reward: charge'), '', 0x27D07F);
+        IPS_SetVariableProfileAssociation('Tibber.GridRewardMode', 3, $this->Translate('Grid reward: curtailment'), '', 0xE8A13A);
     }
 
     private function RegisterVariables(): void
@@ -653,26 +644,43 @@ class TibberGridReward extends IPSModule
         $this->SetValueIfExists('WallboxCharging', $charging);
         $this->SetValueIfExists('DataValid', $anyActive ? $allValid : true);
 
-        // Sollwert nur im „Laden aus Netz"-Modus (excess); sonst soll nichts aus dem Netz geholt werden.
+        $this->UpdateMode($charging);
         $mode = (int) $this->GetValueSafe('GridRewardMode');
-        $this->SetValueIfExists('GridRewardWallboxRequest', $mode === 1 ? $total : 0.0);
+        // „Wallbox aus Netz" gilt, wenn das Auto lädt – normal (1) oder bei Grid-Reward-Laden (2).
+        $this->SetValueIfExists('GridRewardWallboxRequest', ($mode === 1 || $mode === 2) ? $total : 0.0);
     }
 
     /**
-     * Modus aus „Grid Reward aktiv" (Delivering) + Richtung im Status-Detail (kind/reason):
-     *   kein Einsatz (Delivering=false)       -> 0
-     *   Einsatz + shortage (Knappheit)        -> 2 (Drosselung, Wallbox aus)
-     *   Einsatz + excess/unspezifiziert       -> 1 (Laden aus Netz)
+     * Setzt den EMS-Modus und steuert die Energie-/Log-Flanken (Grid-Reward-Laden = excess = Modus 2).
      */
-    private function DetermineMode(bool $delivering, string $reason): int
+    private function UpdateMode(bool $charging): void
     {
-        if (!$delivering) {
-            return 0;
+        $delivering = (bool) $this->GetValueSafe('Delivering');
+        $reason = (string) $this->GetValueSafe('StateReason');
+        $newMode = $this->DetermineMode($delivering, $reason, $charging);
+        $oldMode = (int) $this->GetValueSafe('GridRewardMode');
+
+        if ($newMode === 2 && $oldMode !== 2) {
+            $this->StartGridRewardEvent();
+        } elseif ($newMode !== 2 && $oldMode === 2) {
+            $this->EndGridRewardEvent();
         }
-        if (strpos(strtolower($reason), 'shortage') !== false) {
-            return 2;
+        $this->SetValueIfExists('GridRewardMode', $newMode);
+    }
+
+    /**
+     * Umfassender EMS-Modus aus Grid-Reward-Status + Ladezustand:
+     *   0 = Normal (kein Einsatz, Auto lädt nicht)
+     *   1 = Auto lädt, kein Reward (Smart-Charge / Zwangsbeladen / Freigabe) -> Strom aus Netz
+     *   2 = Grid Reward Laden (excess) -> aus Netz, zusätzlich Batterie aus Netz laden, nie entladen
+     *   3 = Grid Reward Drosselung (shortage) -> Auto aus, Haus aus Batterie/PV, Netzbezug minimieren
+     */
+    private function DetermineMode(bool $delivering, string $reason, bool $charging): int
+    {
+        if ($delivering) {
+            return strpos(strtolower($reason), 'shortage') !== false ? 3 : 2;
         }
-        return 1;
+        return $charging ? 1 : 0;
     }
 
     public function EnergyTick(): void

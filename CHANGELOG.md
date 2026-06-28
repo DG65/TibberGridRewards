@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.10.0
+
+- **`GridRewardMode` als umfassender EMS-Modus (ein Wert, 4 Zustände):**
+  - `0` Normal · `1` Auto lädt (kein Reward: Smart-Charge/Zwangsbeladen/Freigabe → Strom aus Netz)
+    · `2` Grid Reward Laden (excess → aus Netz + Batterie aus Netz laden) · `3` Grid Reward
+    Drosselung (shortage → Auto aus, Haus aus Batterie).
+  - Gebildet aus Grid-Reward-Status **und** Ladezustand (`WallboxCharging`). Damit deckt **ein**
+    Datenpunkt alle Steuersituationen ab; das EMS leitet die Aktion direkt daraus ab.
+- `GridRewardWallboxRequest` ist jetzt aktiv, **wann immer das Auto lädt** (Modus 1 **oder** 2) – nicht
+  nur bei Grid-Reward.
+- Energiezählung/Einsatz-Log weiterhin an `excess` (Modus 2) gekoppelt.
+- README: Abschnitt „Wirtschaftlich optimal steuern" (Strategie fürs EMS; Preis-Arbitrage via TibberV2).
+
 ## 1.9.2
 
 - `GridRewardMode` nutzt jetzt **beide** Signale: „Grid Reward aktiv" (`Delivering`) als Einsatz-Flag

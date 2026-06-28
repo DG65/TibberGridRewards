@@ -90,7 +90,7 @@
         },
         {
           "type": "Label",
-          "caption": "Modus (Variable „Grid-Reward-Modus“) für das EMS, aus „Grid Reward aktiv“ + Status-Detail: 0 = kein Einsatz, 1 = Laden aus Netz (Einsatz + excess → Batterie-Entladung sperren, Last aus Netz), 2 = Drosselung (Einsatz + shortage → Wallbox aus, Netzbezug minimieren)."
+          "caption": "Modus (Variable „Grid-Reward-Modus“) als ein Wert fürs EMS: 0 = Normal · 1 = Auto lädt ohne Reward (Smart-Charge/Zwangsbeladen/Freigabe → Strom aus Netz, Batterie nicht fürs Auto entladen) · 2 = Grid Reward Laden/excess (aus Netz + Batterie aus Netz laden, nie entladen) · 3 = Grid Reward Drosselung/shortage (Auto aus, Haus aus Batterie). Die Preis-Feinsteuerung (wann Batterie laden/entladen) bleibt im EMS."
         }
       ]
     },
