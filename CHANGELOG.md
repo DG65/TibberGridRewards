@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.11.1
+
+- Kachel: die vier Grid-Reward-Energie-Felder sind jetzt **zentriert** (wie die Reward-Boxen).
+
 ## 1.11.0
 
 - Kachel: **dauerhaftes Modus-Band** (feste Kachelhöhe), das `GridRewardMode` spiegelt –
