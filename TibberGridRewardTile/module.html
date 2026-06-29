@@ -80,6 +80,25 @@
             }
         }
 
+        .tgr-band {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 10px;
+            padding: 8px 11px;
+            margin-bottom: 16px;
+            font-weight: 700;
+            font-size: calc(13px * var(--scale));
+        }
+
+        .tgr-band svg {
+            flex: 0 0 auto;
+        }
+
+        .tgr-band svg path {
+            fill: currentColor;
+        }
+
         .tgr-rewards {
             display: flex;
             gap: 10px;
@@ -216,6 +235,10 @@
             <span class="tgr-dot"></span>
             <span class="tgr-status-label" id="state-label"></span>
         </div>
+        <div class="tgr-band" id="band">
+            <svg width="17" height="17" viewBox="0 0 24 24"><path id="band-icon"></path></svg>
+            <span id="band-label"></span>
+        </div>
         <div class="tgr-rewards">
             <div class="tgr-reward">
                 <div class="tgr-reward-val" id="month"></div>
@@ -269,6 +292,14 @@
             document.getElementById('total-label').textContent = data.totalLabel || '';
 
             document.getElementById('card').classList.toggle('live', data.cls === 'live');
+
+            if (data.band) {
+                var band = document.getElementById('band');
+                band.style.background = data.band.bg || 'transparent';
+                band.style.color = data.band.color || 'inherit';
+                document.getElementById('band-icon').setAttribute('d', data.band.icon || '');
+                document.getElementById('band-label').textContent = data.band.label || '';
+            }
 
             var wbRow = document.getElementById('wallbox-row');
             if (data.wallbox) {

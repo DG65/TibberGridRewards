@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.11.0
+
+- Kachel: **dauerhaftes Modus-Band** (feste Kachelhöhe), das `GridRewardMode` spiegelt –
+  ausgegraut „Kein Einsatz" (0), Teal „Auto lädt · aus Netz" (1), Grün „Laden aus Netz" (2),
+  Bernstein „Drosselung" (3). Statusbadge färbt sich bei Drosselung bernstein und pulsiert bei
+  aktivem Einsatz (2/3).
+- Neuer Farbwähler **„Drosselung (shortage)"** (Standard Bernstein) + in „Zurücksetzen".
+- Kachel lauscht nun auch auf `GridRewardMode`, `WallboxPowerTotal` und die Energie-Variablen
+  (Live-Aktualisierung).
+
 ## 1.10.0
 
 - **`GridRewardMode` als umfassender EMS-Modus (ein Wert, 4 Zustände):**

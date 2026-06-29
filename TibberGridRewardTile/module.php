@@ -17,7 +17,8 @@ class TibberGridRewardTile extends IPSModule
     private const SOURCE_MODULE = '{E92F62F4-88A6-4C6E-9F0D-E76C3B1C9A01}';
 
     // Standardwerte (auch für „Zurücksetzen")
-    private const DEF_ACTIVE      = 0x27D07F;
+    private const DEF_ACTIVE      = 0x27D07F; // Laden aus Netz (excess)
+    private const DEF_CURTAIL     = 0xE8A13A; // Drosselung (shortage)
     private const DEF_AVAILABLE   = 0x2BB3C0;
     private const DEF_UNAVAILABLE = 0x7A8A99;
     // -1 = keine feste Farbe -> Kachel übernimmt das IPS-Theme (transparenter Hintergrund,
@@ -38,6 +39,7 @@ class TibberGridRewardTile extends IPSModule
 
         // Statusfarben
         $this->RegisterPropertyInteger('ColorActive', self::DEF_ACTIVE);
+        $this->RegisterPropertyInteger('ColorCurtailment', self::DEF_CURTAIL);
         $this->RegisterPropertyInteger('ColorAvailable', self::DEF_AVAILABLE);
         $this->RegisterPropertyInteger('ColorUnavailable', self::DEF_UNAVAILABLE);
         // Flächen-/Textfarben
@@ -78,7 +80,10 @@ class TibberGridRewardTile extends IPSModule
         // Auf Änderungen der Quell-Variablen lauschen, damit die Kachel sich aktualisiert
         $src = $this->ResolveSource();
         if ($src > 0 && IPS_InstanceExists($src)) {
-            foreach (['Delivering', 'State', 'RewardCurrentMonth', 'RewardAllTime', 'Currency', 'FlexDevices'] as $ident) {
+            $watch = ['Delivering', 'State', 'GridRewardMode', 'RewardCurrentMonth', 'RewardAllTime',
+                'Currency', 'WallboxPowerTotal', 'GridRewardEnergyEvent', 'GridRewardEnergyToday',
+                'GridRewardEnergyMonth', 'GridRewardEnergyTotal', 'FlexDevices'];
+            foreach ($watch as $ident) {
                 $vid = @IPS_GetObjectIDByIdent($ident, $src);
                 if ($vid !== false && $vid > 0) {
                     $this->RegisterReference($vid);
@@ -114,6 +119,7 @@ class TibberGridRewardTile extends IPSModule
     public function ResetStyle(): void
     {
         $this->UpdateFormField('ColorActive', 'value', self::DEF_ACTIVE);
+        $this->UpdateFormField('ColorCurtailment', 'value', self::DEF_CURTAIL);
         $this->UpdateFormField('ColorAvailable', 'value', self::DEF_AVAILABLE);
         $this->UpdateFormField('ColorUnavailable', 'value', self::DEF_UNAVAILABLE);
         $this->UpdateFormField('ColorBackground', 'value', self::DEF_BACKGROUND);
@@ -139,6 +145,7 @@ class TibberGridRewardTile extends IPSModule
     private function GetFullUpdateMessage(): string
     {
         $cActive = $this->ColorHex($this->ReadPropertyInteger('ColorActive'), '#27d07f');
+        $cCurtail = $this->ColorHex($this->ReadPropertyInteger('ColorCurtailment'), '#e8a13a');
         $cAvail = $this->ColorHex($this->ReadPropertyInteger('ColorAvailable'), '#2bb3c0');
         $cUnavail = $this->ColorHex($this->ReadPropertyInteger('ColorUnavailable'), '#7a8a99');
 
@@ -152,6 +159,8 @@ class TibberGridRewardTile extends IPSModule
             'scale'     => $this->FontScaleValue(),
         ];
 
+        $bandColors = ['active' => $cActive, 'curtail' => $cCurtail, 'avail' => $cAvail, 'unavail' => $cUnavail];
+
         $src = $this->ResolveSource();
         if ($src <= 0 || !IPS_InstanceExists($src)) {
             return json_encode(array_merge($style, [
@@ -162,23 +171,32 @@ class TibberGridRewardTile extends IPSModule
                 'total'      => '–',
                 'monthLabel' => $this->Translate('This month'),
                 'totalLabel' => $this->Translate('Total'),
+                'band'       => $this->BuildBand(0, $bandColors),
                 'emptyLabel' => $this->Translate('No flex devices'),
                 'devices'    => [],
             ]));
         }
 
-        $delivering = (bool) $this->ReadSourceValue($src, 'Delivering', false);
         $stateText = (string) $this->ReadSourceValue($src, 'State', '');
+        $mode = (int) $this->ReadSourceValue($src, 'GridRewardMode', 0);
 
-        if ($delivering) {
-            $cls = 'live';
-            $accent = $cActive;
-        } elseif ($stateText === $this->Translate('Available')) {
-            $cls = 'avail';
-            $accent = $cAvail;
-        } else {
-            $cls = 'off';
-            $accent = $cUnavail;
+        // Statusakzent + Pulsieren aus dem Modus (2 = Laden grün, 3 = Drosselung bernstein)
+        switch ($mode) {
+            case 2:
+                $cls = 'live';
+                $accent = $cActive;
+                break;
+            case 3:
+                $cls = 'live';
+                $accent = $cCurtail;
+                break;
+            case 1:
+                $cls = 'off';
+                $accent = $cAvail;
+                break;
+            default:
+                $cls = 'off';
+                $accent = ($stateText === $this->Translate('Available')) ? $cAvail : $cUnavail;
         }
 
         $cur = $this->CurrencySymbol((string) $this->ReadSourceValue($src, 'Currency', ''));
@@ -216,6 +234,7 @@ class TibberGridRewardTile extends IPSModule
             'total'        => $total,
             'monthLabel'   => $this->Translate('This month'),
             'totalLabel'   => $this->Translate('Total'),
+            'band'         => $this->BuildBand($mode, $bandColors),
             'wallbox'      => $wallbox,
             'wallboxLabel' => $this->Translate('Wallboxes'),
             'energy'       => $energy,
@@ -223,6 +242,43 @@ class TibberGridRewardTile extends IPSModule
             'emptyLabel'   => $this->Translate('No flex devices'),
             'devices'      => $devices,
         ]));
+    }
+
+    /**
+     * Dauerhaftes Modus-Band: bei Modus 0 ausgegraut, sonst farbig je Richtung.
+     * @param array{active:string,curtail:string,avail:string,unavail:string} $c
+     */
+    private function BuildBand(int $mode, array $c): array
+    {
+        // Icon-Pfade (viewBox 0 0 24 24): Blitz, Pfeil runter, Minus
+        $bolt = 'M13 2 4 14h6l-1 8 9-12h-6z';
+        $down = 'M11 4h2v9h3l-4 5-4-5h3z';
+        $dash = 'M5 11h14v2H5z';
+
+        switch ($mode) {
+            case 1:
+                return ['label' => $this->Translate('Car charging · from grid'), 'color' => $c['avail'],
+                    'bg' => $this->Rgba($c['avail'], 0.16), 'icon' => $bolt];
+            case 2:
+                return ['label' => $this->Translate('Charge from grid'), 'color' => $c['active'],
+                    'bg' => $this->Rgba($c['active'], 0.16), 'icon' => $bolt];
+            case 3:
+                return ['label' => $this->Translate('Curtailment'), 'color' => $c['curtail'],
+                    'bg' => $this->Rgba($c['curtail'], 0.18), 'icon' => $down];
+            default:
+                return ['label' => $this->Translate('No event'), 'color' => '#8a96a4',
+                    'bg' => 'rgba(127,135,145,.10)', 'icon' => $dash];
+        }
+    }
+
+    private function Rgba(string $hex, float $alpha): string
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) !== 6) {
+            return 'rgba(127,135,145,' . $alpha . ')';
+        }
+        return 'rgba(' . hexdec(substr($hex, 0, 2)) . ',' . hexdec(substr($hex, 2, 2)) . ','
+            . hexdec(substr($hex, 4, 2)) . ',' . $alpha . ')';
     }
 
     private function FormatKwh(float $kwh): string

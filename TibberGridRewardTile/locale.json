@@ -13,7 +13,11 @@
       "Grid reward energy": "Grid-Reward-Energie",
       "Event": "Einsatz",
       "Today": "Heute",
-      "Month": "Monat"
+      "Month": "Monat",
+      "No event": "Kein Einsatz",
+      "Car charging · from grid": "Auto lädt · aus Netz",
+      "Charge from grid": "Laden aus Netz",
+      "Curtailment": "Drosselung"
     }
   }
 }

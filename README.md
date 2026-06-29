@@ -137,6 +137,10 @@ Farben** (Status, Hintergrund, Boxen, Text), die **Schriftart** und die **Schrif
 Button **„Farben & Schrift auf Standard zurücksetzen"** stellt alles wieder her. Die Kachel
 aktualisiert sich automatisch bei jeder Variablenänderung der Quelle.
 
+Ein dauerhaftes **Modus-Band** (feste Kachelhöhe) zeigt den `GridRewardMode`: ausgegraut „Kein Einsatz",
+Teal „Auto lädt · aus Netz", Grün „Laden aus Netz" und Bernstein „Drosselung". Die Status- und
+Drosselungs-Farbe sind eigene Farbwähler.
+
 > Alle Kachel-Einstellungen liegen ausschließlich beim Modul `TibberGridRewardTile`. Das Datenmodul
 > `TibberGridReward` enthält keine Darstellungs-Optionen mehr.
 

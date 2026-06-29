@@ -14,8 +14,9 @@
       "type": "ExpansionPanel",
       "caption": "🎨 Statusfarben",
       "items": [
-        { "type": "SelectColor", "name": "ColorActive", "caption": "Einsatz aktiv" },
-        { "type": "SelectColor", "name": "ColorAvailable", "caption": "Verfügbar" },
+        { "type": "SelectColor", "name": "ColorActive", "caption": "Laden aus Netz (excess)" },
+        { "type": "SelectColor", "name": "ColorCurtailment", "caption": "Drosselung (shortage)" },
+        { "type": "SelectColor", "name": "ColorAvailable", "caption": "Verfügbar / Auto lädt" },
         { "type": "SelectColor", "name": "ColorUnavailable", "caption": "Nicht verfügbar" }
       ]
     },
