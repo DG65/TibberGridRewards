@@ -96,57 +96,40 @@
     },
     {
       "type": "ExpansionPanel",
-      "caption": "🎯 EMS-Aktionen je Modus",
+      "caption": "🎯 EMS-Leistungsmodus je Grid-Reward-Modus",
       "items": [
         {
           "type": "Label",
-          "caption": "Hier legt jeder Nutzer selbst fest, woher der Strom je Grid-Reward-Modus kommen soll: Beim Wechsel in einen Modus (0 Normal · 1 Auto lädt · 2 Grid Reward Laden · 3 Drosselung) wird für jede aktive Zeile mit passendem Modus die gewählte Zielvariable (z. B. der Betriebsmodus-Schalter des eigenen Wechselrichters/EMS) per RequestAction auf den angegebenen Wert gesetzt. Der Wert wird automatisch in den Typ der Zielvariable umgewandelt (Zahl, true/false oder Text). Pro Modus sind beliebig viele Zeilen möglich (z. B. Modus + Leistungsvorgabe getrennt setzen)."
+          "caption": "Wähle die Zielvariable deines EMS-Leistungsmodus (z. B. der Betriebsmodus-Schalter deines Wechselrichters/EMS). Für jeden der 4 Grid-Reward-Modi legst du fest, welchen Wert diese eine Variable annehmen soll. Hat die Zielvariable ein Variablenprofil mit Textwerten (z. B. „Automatik“, „Batterie-Laden“), erscheinen hier automatisch die passenden Bezeichnungen zur Auswahl – sonst trägst du die rohe Zahl ein. Beim Wechsel des Grid-Reward-Modus wird der jeweils hinterlegte Wert automatisch per RequestAction gesetzt."
         },
         {
-          "type": "List",
-          "name": "ModeActions",
-          "caption": "Aktionen",
-          "rowCount": 6,
-          "add": true,
-          "delete": true,
-          "columns": [
-            {
-              "caption": "Aktiv",
-              "name": "Active",
-              "width": "60px",
-              "add": true,
-              "edit": { "type": "CheckBox" }
-            },
-            {
-              "caption": "Grid-Reward-Modus",
-              "name": "Mode",
-              "width": "220px",
-              "add": 0,
-              "edit": {
-                "type": "Select",
-                "options": [
-                  { "caption": "0 – Normal", "value": 0 },
-                  { "caption": "1 – Auto lädt (kein Reward)", "value": 1 },
-                  { "caption": "2 – Grid Reward: Laden", "value": 2 },
-                  { "caption": "3 – Grid Reward: Drosselung", "value": 3 }
-                ]
-              }
-            },
-            {
-              "caption": "Zielvariable",
-              "name": "Target",
-              "width": "auto",
-              "add": 0,
-              "edit": { "type": "SelectVariable" }
-            },
-            {
-              "caption": "Wert",
-              "name": "Value",
-              "width": "140px",
-              "add": "",
-              "edit": { "type": "ValidationTextBox" }
-            }
-          ]
+          "type": "SelectVariable",
+          "name": "EmsModeVariable",
+          "caption": "EMS Leistungsmodus (Zielvariable)"
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "EmsModeValue0",
+          "caption": "Modus 0 – Normal",
+          "digits": 0
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "EmsModeValue1",
+          "caption": "Modus 1 – Auto lädt (kein Reward)",
+          "digits": 0
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "EmsModeValue2",
+          "caption": "Modus 2 – Grid Reward: Laden",
+          "digits": 0
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "EmsModeValue3",
+          "caption": "Modus 3 – Grid Reward: Drosselung",
+          "digits": 0
         }
       ]
     },

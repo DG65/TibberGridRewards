@@ -44,8 +44,12 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyFloat('ChargingThreshold', 100.0);
         $this->RegisterPropertyInteger('MaxAge', 120);
 
-        // Konfigurierbare EMS-Aktionen je Grid-Reward-Modus (0-3): setzt beliebige Zielvariablen
-        $this->RegisterPropertyString('ModeActions', '[]');
+        // EMS-Leistungsmodus je Grid-Reward-Modus (0-3): eine Zielvariable, vier Werte
+        $this->RegisterPropertyInteger('EmsModeVariable', 0);
+        $this->RegisterPropertyInteger('EmsModeValue0', 0);
+        $this->RegisterPropertyInteger('EmsModeValue1', 0);
+        $this->RegisterPropertyInteger('EmsModeValue2', 0);
+        $this->RegisterPropertyInteger('EmsModeValue3', 0);
 
         $this->RegisterAttributeString('JWT', '');
         $this->RegisterAttributeInteger('JWT_Exp', 0);
@@ -155,7 +159,63 @@ class TibberGridReward extends IPSModule
         }
         unset($element);
 
+        // EMS-Leistungsmodus-Felder: falls die Zielvariable ein Profil mit Textwerten hat (z. B.
+        // "Automatik", "Batterie-Laden"), die vier Werte-Felder als Dropdown mit diesen Bezeichnungen
+        // anzeigen statt als rohe Zahleneingabe.
+        $assocOptions = $this->GetEmsModeAssociationOptions();
+        if ($assocOptions !== null) {
+            $names = ['EmsModeValue0', 'EmsModeValue1', 'EmsModeValue2', 'EmsModeValue3'];
+            $this->ReplaceFormElements($form['elements'], $names, function (array &$el) use ($assocOptions) {
+                $el['type'] = 'Select';
+                $el['options'] = $assocOptions;
+                unset($el['digits']);
+            });
+        }
+
         return json_encode($form);
+    }
+
+    /**
+     * Liefert die Dropdown-Optionen aus dem Variablenprofil der EMS-Leistungsmodus-Zielvariable
+     * (Value + Name je Assoziation), oder null, wenn kein Profil mit Assoziationen vorhanden ist.
+     */
+    private function GetEmsModeAssociationOptions(): ?array
+    {
+        $targetID = $this->ReadPropertyInteger('EmsModeVariable');
+        if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
+            return null;
+        }
+        $info = IPS_GetVariable($targetID);
+        $profileName = $info['VariableCustomProfile'] !== '' ? $info['VariableCustomProfile'] : $info['VariableProfile'];
+        if ($profileName === '' || !IPS_VariableProfileExists($profileName)) {
+            return null;
+        }
+        $profile = IPS_GetVariableProfile($profileName);
+        if (empty($profile['Associations'])) {
+            return null;
+        }
+        $options = [];
+        foreach ($profile['Associations'] as $assoc) {
+            $options[] = ['caption' => $assoc['Value'] . ' – ' . $assoc['Name'], 'value' => (int) $assoc['Value']];
+        }
+        return $options;
+    }
+
+    /**
+     * Sucht Formularelemente per Name (auch verschachtelt in ExpansionPanel-"items") und wendet
+     * darauf $callback an.
+     */
+    private function ReplaceFormElements(array &$elements, array $names, callable $callback): void
+    {
+        foreach ($elements as &$el) {
+            if (isset($el['name']) && in_array($el['name'], $names, true)) {
+                $callback($el);
+            }
+            if (isset($el['items']) && is_array($el['items'])) {
+                $this->ReplaceFormElements($el['items'], $names, $callback);
+            }
+        }
+        unset($el);
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
@@ -675,35 +735,26 @@ class TibberGridReward extends IPSModule
     }
 
     /**
-     * Führt die im Formular hinterlegten EMS-Aktionen für den neuen Modus aus: setzt je konfigurierter
-     * Zeile die Zielvariable per RequestAction auf den angegebenen Wert (Typ wird aus der Zielvariable
-     * abgeleitet). So kann jeder Nutzer selbst festlegen, wie sein EMS/Wechselrichter je Grid-Reward-
-     * Modus (0-3) reagiert, ohne ein eigenes Skript schreiben zu müssen.
+     * Setzt beim Moduswechsel den konfigurierten EMS-Leistungsmodus: eine Zielvariable, deren Wert je
+     * Grid-Reward-Modus (0-3) im Formular hinterlegt ist. So kann jeder Nutzer selbst festlegen, wie
+     * sein EMS/Wechselrichter reagiert, ohne ein eigenes Skript schreiben zu müssen.
      */
     private function ApplyModeActions(int $mode): void
     {
-        $rows = json_decode($this->ReadPropertyString('ModeActions'), true);
-        if (!is_array($rows)) {
+        if ($mode < 0 || $mode > 3) {
             return;
         }
-        foreach ($rows as $row) {
-            if (empty($row['Active'])) {
-                continue;
-            }
-            if ((int) ($row['Mode'] ?? -1) !== $mode) {
-                continue;
-            }
-            $targetID = (int) ($row['Target'] ?? 0);
-            if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
-                continue;
-            }
-            $value = $this->ParseActionValue($targetID, (string) ($row['Value'] ?? ''));
-            if ($value === null) {
-                continue;
-            }
-            @RequestAction($targetID, $value);
-            $this->SendDebug(__FUNCTION__, 'Modus ' . $mode . ' -> Variable ' . $targetID . ' = ' . var_export($value, true), 0);
+        $targetID = $this->ReadPropertyInteger('EmsModeVariable');
+        if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
+            return;
         }
+        $raw = (string) $this->ReadPropertyInteger('EmsModeValue' . $mode);
+        $value = $this->ParseActionValue($targetID, $raw);
+        if ($value === null) {
+            return;
+        }
+        @RequestAction($targetID, $value);
+        $this->SendDebug(__FUNCTION__, 'Modus ' . $mode . ' -> EMS-Leistungsmodus ' . $targetID . ' = ' . var_export($value, true), 0);
     }
 
     /**

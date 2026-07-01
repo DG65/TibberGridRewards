@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.12.1
+
+- **Vereinfacht:** „EMS-Aktionen je Modus" (generische Mehrfach-Liste) ersetzt durch **„EMS-Leistungsmodus
+  je Grid-Reward-Modus"** – eine einzige Zielvariable (der Betriebsmodus-Schalter des EMS/Wechselrichters)
+  plus vier Werte, einer je Grid-Reward-Modus (0–3). Entspricht dem eigentlichen Anwendungsfall besser.
+- Hat die Zielvariable ein Variablenprofil mit Textwerten (z. B. „Automatik", „Batterie-Laden"),
+  erscheinen die vier Werte-Felder automatisch als **Dropdown mit diesen Bezeichnungen**.
+
 ## 1.12.0
 
 - **Neu: „🎯 EMS-Aktionen je Modus"** im Datenmodul. Konfigurierbare Liste (Modus, Zielvariable, Wert):
