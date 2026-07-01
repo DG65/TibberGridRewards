@@ -44,6 +44,9 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyFloat('ChargingThreshold', 100.0);
         $this->RegisterPropertyInteger('MaxAge', 120);
 
+        // Konfigurierbare EMS-Aktionen je Grid-Reward-Modus (0-3): setzt beliebige Zielvariablen
+        $this->RegisterPropertyString('ModeActions', '[]');
+
         $this->RegisterAttributeString('JWT', '');
         $this->RegisterAttributeInteger('JWT_Exp', 0);
         $this->RegisterAttributeString('Homes', '');
@@ -665,7 +668,63 @@ class TibberGridReward extends IPSModule
         } elseif ($newMode !== 2 && $oldMode === 2) {
             $this->EndGridRewardEvent();
         }
+        if ($newMode !== $oldMode) {
+            $this->ApplyModeActions($newMode);
+        }
         $this->SetValueIfExists('GridRewardMode', $newMode);
+    }
+
+    /**
+     * Führt die im Formular hinterlegten EMS-Aktionen für den neuen Modus aus: setzt je konfigurierter
+     * Zeile die Zielvariable per RequestAction auf den angegebenen Wert (Typ wird aus der Zielvariable
+     * abgeleitet). So kann jeder Nutzer selbst festlegen, wie sein EMS/Wechselrichter je Grid-Reward-
+     * Modus (0-3) reagiert, ohne ein eigenes Skript schreiben zu müssen.
+     */
+    private function ApplyModeActions(int $mode): void
+    {
+        $rows = json_decode($this->ReadPropertyString('ModeActions'), true);
+        if (!is_array($rows)) {
+            return;
+        }
+        foreach ($rows as $row) {
+            if (empty($row['Active'])) {
+                continue;
+            }
+            if ((int) ($row['Mode'] ?? -1) !== $mode) {
+                continue;
+            }
+            $targetID = (int) ($row['Target'] ?? 0);
+            if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
+                continue;
+            }
+            $value = $this->ParseActionValue($targetID, (string) ($row['Value'] ?? ''));
+            if ($value === null) {
+                continue;
+            }
+            @RequestAction($targetID, $value);
+            $this->SendDebug(__FUNCTION__, 'Modus ' . $mode . ' -> Variable ' . $targetID . ' = ' . var_export($value, true), 0);
+        }
+    }
+
+    /**
+     * Wandelt den im Formular eingegebenen Text in den passenden Typ der Zielvariable um.
+     */
+    private function ParseActionValue(int $targetID, string $raw)
+    {
+        $info = IPS_GetVariable($targetID);
+        $raw = trim($raw);
+        switch ($info['VariableType']) {
+            case VARIABLETYPE_BOOLEAN:
+                return in_array(strtolower($raw), ['1', 'true', 'wahr', 'ja', 'yes', 'on'], true);
+            case VARIABLETYPE_INTEGER:
+                return (int) $raw;
+            case VARIABLETYPE_FLOAT:
+                return (float) str_replace(',', '.', $raw);
+            case VARIABLETYPE_STRING:
+                return $raw;
+            default:
+                return null;
+        }
     }
 
     /**

@@ -186,6 +186,22 @@ Die Fälle „Preis ok / Freigabe" und „Zwangsbeladen" fallen bewusst in **Wer
 (aktiv bei Wert 1 **und** 2). Energiezählung und Einsatz-Log beziehen sich auf **`excess` (Wert 2)** –
 den Zeitraum, in dem für die Vergütung tatsächlich aus dem Netz geladen wird.
 
+### EMS-Aktionen je Modus – ohne eigenes Skript konfigurierbar
+
+Damit **jeder Nutzer** selbst festlegen kann, woher der Strom in welchem Modus kommen soll, gibt es im
+Datenmodul unter **🎯 EMS-Aktionen je Modus** eine Liste: Für jede Zeile wählst du den **Grid-Reward-Modus**
+(0–3), eine **Zielvariable** (z. B. der Betriebsmodus-Schalter deines Wechselrichters/EMS) und den
+**Wert**, den sie annehmen soll. Beim Wechsel in einen Modus setzt das Modul automatisch alle aktiven
+Zeilen mit passendem Modus per `RequestAction` – der eingegebene Wert wird passend zum Typ der
+Zielvariable umgewandelt (Zahl, `true`/`false` oder Text). Pro Modus sind beliebig viele Zeilen möglich,
+z. B. um Betriebsmodus **und** Leistungsvorgabe getrennt zu setzen.
+
+Das deckt einfache, statische Zuordnungen ab (z. B. „Modus 2 → Wechselrichter-Modus = Batterie laden").
+Für komplexere, dynamische Logik (z. B. „nur laden, wenn die Batterie beim Einsatz-Start bereits lud,
+und die Leistung aus der vorherigen Einstellung + Wallbox-Leistung berechnen") bleibt ein eigenes
+Ereignis-Skript auf `GridRewardMode` die passendere Wahl – das Modul liefert dafür weiterhin alle nötigen
+Werte (`GridRewardMode`, `GridRewardWallboxRequest`, `WallboxPowerTotal`).
+
 ### Wirtschaftlich optimal steuern (Strategie fürs EMS)
 
 Grundregel: **Jede kWh aus der billigsten Quelle.** Grenzkosten: PV (~0) < Batterie-**Wert** (= teuerste

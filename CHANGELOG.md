@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.12.0
+
+- **Neu: „🎯 EMS-Aktionen je Modus"** im Datenmodul. Konfigurierbare Liste (Modus, Zielvariable, Wert):
+  Beim Wechsel des `GridRewardMode` (0–3) setzt das Modul automatisch alle aktiven, passenden Zeilen
+  per `RequestAction` auf die Zielvariable – Wert wird passend zum Variablentyp umgewandelt (Zahl/
+  Bool/Text). Damit kann jeder Nutzer selbst festlegen, woher der Strom je Modus kommt (eigener
+  Wechselrichter/EMS), **ohne eigenes Skript**. Für dynamischere Logik bleibt ein eigenes
+  Ereignis-Skript auf `GridRewardMode` weiterhin möglich und sinnvoll.
+
 ## 1.11.1
 
 - Kachel: die vier Grid-Reward-Energie-Felder sind jetzt **zentriert** (wie die Reward-Boxen).
