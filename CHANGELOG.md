@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.13.0
+
+- **Neu: EMS-Leistungssollwert (optional)** im Panel „🎯 EMS-Steuerung je Grid-Reward-Modus": zweite
+  Zielvariable, die fortlaufend auf `GridRewardWallboxRequest` gesetzt wird – exakt die Leistung, die
+  das Auto gerade braucht. Damit weiß das Modul jetzt auch, **wohin** der Leistungswert geschrieben
+  werden soll (bisher setzte es nur den festen Modus-Wert, keinen Leistungswert). Schreibt nur bei
+  Änderung ≥ 1 W, um den Aktor nicht zu spammen.
+- Panel umbenannt in „EMS-Steuerung je Grid-Reward-Modus" (deckt jetzt Modus + Leistung ab).
+
 ## 1.12.1
 
 - **Vereinfacht:** „EMS-Aktionen je Modus" (generische Mehrfach-Liste) ersetzt durch **„EMS-Leistungsmodus

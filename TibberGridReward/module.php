@@ -50,6 +50,10 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyInteger('EmsModeValue1', 0);
         $this->RegisterPropertyInteger('EmsModeValue2', 0);
         $this->RegisterPropertyInteger('EmsModeValue3', 0);
+        // Optional: Zielvariable für die Leistungsvorgabe -> wird fortlaufend auf
+        // GridRewardWallboxRequest gesetzt (genau so viel Leistung, wie das Auto gerade braucht)
+        $this->RegisterPropertyInteger('EmsPowerVariable', 0);
+        $this->RegisterAttributeFloat('LastAppliedPower', -1.0);
 
         $this->RegisterAttributeString('JWT', '');
         $this->RegisterAttributeInteger('JWT_Exp', 0);
@@ -710,7 +714,32 @@ class TibberGridReward extends IPSModule
         $this->UpdateMode($charging);
         $mode = (int) $this->GetValueSafe('GridRewardMode');
         // „Wallbox aus Netz" gilt, wenn das Auto lädt – normal (1) oder bei Grid-Reward-Laden (2).
-        $this->SetValueIfExists('GridRewardWallboxRequest', ($mode === 1 || $mode === 2) ? $total : 0.0);
+        $request = ($mode === 1 || $mode === 2) ? $total : 0.0;
+        $this->SetValueIfExists('GridRewardWallboxRequest', $request);
+        $this->ApplyPowerSetpoint($request);
+    }
+
+    /**
+     * Setzt fortlaufend die optionale Leistungssollwert-Zielvariable auf den benötigten Netzbezug
+     * (GridRewardWallboxRequest) – so kauft das EMS immer nur so viel Energie ein, wie das Auto gerade
+     * tatsächlich braucht. Schreibt nur bei relevanter Änderung (>= 1 W), um Aktor/Log nicht zu spammen.
+     */
+    private function ApplyPowerSetpoint(float $power): void
+    {
+        $targetID = $this->ReadPropertyInteger('EmsPowerVariable');
+        if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
+            return;
+        }
+        if (abs($power - $this->ReadAttributeFloat('LastAppliedPower')) < 1.0) {
+            return;
+        }
+        $value = $this->ParseActionValue($targetID, (string) $power);
+        if ($value === null) {
+            return;
+        }
+        @RequestAction($targetID, $value);
+        $this->WriteAttributeFloat('LastAppliedPower', $power);
+        $this->SendDebug(__FUNCTION__, 'Leistungssollwert -> Variable ' . $targetID . ' = ' . var_export($value, true), 0);
     }
 
     /**

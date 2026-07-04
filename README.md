@@ -186,23 +186,30 @@ Die Fälle „Preis ok / Freigabe" und „Zwangsbeladen" fallen bewusst in **Wer
 (aktiv bei Wert 1 **und** 2). Energiezählung und Einsatz-Log beziehen sich auf **`excess` (Wert 2)** –
 den Zeitraum, in dem für die Vergütung tatsächlich aus dem Netz geladen wird.
 
-### EMS-Leistungsmodus je Modus – ohne eigenes Skript konfigurierbar
+### EMS-Steuerung je Modus – ohne eigenes Skript konfigurierbar
 
 Damit **jeder Nutzer** selbst festlegen kann, wie sein EMS/Wechselrichter reagiert, gibt es im
-Datenmodul unter **🎯 EMS-Leistungsmodus je Grid-Reward-Modus**: Man wählt **eine Zielvariable** – den
-Betriebsmodus-Schalter des eigenen Wechselrichters/EMS (z. B. `EMSPowerMode`) – und legt für jeden der
-4 Grid-Reward-Modi (0–3) fest, welchen Wert diese eine Variable annehmen soll. Beim Moduswechsel setzt
-das Modul den passenden Wert automatisch per `RequestAction`.
+Datenmodul unter **🎯 EMS-Steuerung je Grid-Reward-Modus** zwei Bausteine:
 
-Hat die Zielvariable ein **Variablenprofil mit Textwerten** (z. B. „Automatik", „Batterie-Laden" – wie
-bei vielen Wechselrichter-Modulen üblich), erscheinen die vier Felder automatisch als **Dropdown mit
-diesen Bezeichnungen** statt als rohe Zahleneingabe.
+1. **Leistungsmodus (Betriebsart):** Man wählt **eine Zielvariable** – den Betriebsmodus-Schalter des
+   eigenen Wechselrichters/EMS (z. B. `EMSPowerMode`) – und legt für jeden der 4 Grid-Reward-Modi (0–3)
+   fest, welchen Wert diese eine Variable annehmen soll. Beim Moduswechsel setzt das Modul den
+   passenden Wert automatisch per `RequestAction`. Hat die Zielvariable ein **Variablenprofil mit
+   Textwerten** (z. B. „Automatik", „Batterie-Laden" – wie bei vielen Wechselrichter-Modulen üblich),
+   erscheinen die vier Felder automatisch als **Dropdown mit diesen Bezeichnungen** statt als rohe
+   Zahleneingabe.
+2. **Leistungssollwert (optional):** Eine zweite, ebenfalls per `SelectVariable` wählbare Zielvariable
+   für die Leistungsvorgabe (z. B. `EMS Leistungseinstellung`). Sie wird **fortlaufend** auf
+   `GridRewardWallboxRequest` gesetzt – also exakt auf die Leistung, die das Auto gerade tatsächlich
+   braucht. So kauft das EMS immer nur so viel Energie aus dem Netz ein, wie fürs Laden benötigt wird
+   (geschrieben wird nur bei relevanter Änderung, um den Aktor nicht zu spammen).
 
-Das deckt eine einfache, statische Zuordnung ab (z. B. „Modus 2 → Batterie-Laden"). Für komplexere,
-dynamische Logik (z. B. „nur laden, wenn die Batterie beim Einsatz-Start bereits lud, und die Leistung
-aus der vorherigen Einstellung + Wallbox-Leistung berechnen") bleibt ein eigenes Ereignis-Skript auf
-`GridRewardMode` die passendere Wahl – das Modul liefert dafür weiterhin alle nötigen Werte
-(`GridRewardMode`, `GridRewardWallboxRequest`, `WallboxPowerTotal`).
+Das deckt eine einfache, statische Zuordnung ab (z. B. „Modus 2 → Batterie-Laden" + „Leistung = aktuelle
+Wallbox-Last"). Für komplexere, dynamische Logik (z. B. „nur laden, wenn die Batterie beim
+Einsatz-Start bereits lud, und die Leistung aus der vorherigen Einstellung + Wallbox-Leistung
+berechnen") bleibt ein eigenes Ereignis-Skript auf `GridRewardMode` die passendere Wahl – das Modul
+liefert dafür weiterhin alle nötigen Werte (`GridRewardMode`, `GridRewardWallboxRequest`,
+`WallboxPowerTotal`).
 
 ### Wirtschaftlich optimal steuern (Strategie fürs EMS)
 
