@@ -296,10 +296,13 @@ echten Einsatz zu warten.
 > Ziel­variablen aus (z. B. den Leistungsmodus deines Wechselrichters). Das ist beabsichtigt – ein
 > echter Funktionstest –, aber kein rein passives „Anschauen".
 
-Die Simulation bleibt so lange bestehen, bis entweder der nächste echte Tibber-Push eintrifft (kann
-je nach Preisfenster länger dauern) oder du auf **„↩ Zurück zum echten Status"** klickst. Dieser Button
-stellt sofort den zuletzt bekannten echten (nicht simulierten) Status wieder her – inklusive der
-richtigen Flex-Geräte-Liste –, ohne auf den nächsten Push warten zu müssen.
+Die Simulation bleibt so lange bestehen, bis entweder der nächste echte Tibber-Push eintrifft oder du
+auf **„↩ Zurück zum echten Status"** klickst. Dieser Button zeigt sofort den zuletzt bekannten echten
+(nicht simulierten) Status als Näherung – und fordert zusätzlich **aktiv einen frischen Status direkt
+von Tibber an** (die laufende Subscription wird ab- und sofort wieder angemeldet). Der frische Push
+kommt umgehend als normales Update herein und überschreibt die Näherung automatisch, falls sich der
+echte Status inzwischen geändert haben sollte – zuverlässiger, als sich nur auf einen zwischengespeicherten
+Stand zu verlassen.
 
 ## Fehlersuche
 

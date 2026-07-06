@@ -518,18 +518,26 @@ class TibberGridReward extends IPSModule
     }
 
     /**
-     * Beendet die Simulation und stellt sofort den zuletzt echten (nicht simulierten) Tibber-Status
-     * wieder her – ohne auf den nächsten echten Push warten zu müssen.
+     * Beendet die Simulation: zeigt sofort den zuletzt zwischengespeicherten echten Status als
+     * Näherung (kein Warten), fordert aber zusätzlich einen FRISCHEN Status direkt von Tibber an
+     * (erneutes Ab-/Anmelden der laufenden Subscription). Der frische Push kommt als normales
+     * "next"-Paket herein und überschreibt die Näherung automatisch, falls sich der echte Status
+     * inzwischen geändert haben sollte – zuverlässiger als sich allein auf den Cache zu verlassen.
      */
     public function ResetSimulation(): void
     {
         $cached = json_decode($this->ReadAttributeString('LastRealStatus'), true);
-        if (!is_array($cached)) {
-            $this->SendDebug(__FUNCTION__, 'Noch kein echter Status bekannt', 0);
-            return;
+        if (is_array($cached)) {
+            $this->SendDebug(__FUNCTION__, 'Zeige zwischengespeicherten Status, fordere frischen Push an', 0);
+            $this->ProcessGridReward($cached);
+        } else {
+            $this->SendDebug(__FUNCTION__, 'Noch kein echter Status bekannt, fordere frischen Push an', 0);
         }
-        $this->SendDebug(__FUNCTION__, 'Stelle letzten echten Status wieder her', 0);
-        $this->ProcessGridReward($cached);
+
+        // Laufende Subscription sauber beenden und neu abonnieren -> Tibber schickt umgehend den
+        // aktuellen Status als frisches "next".
+        $this->SendToWS(json_encode(['id' => (string) $this->ReadPropertyInteger('SubID'), 'type' => 'complete']));
+        $this->SubscribeData();
     }
 
     // ---------------------------------------------------------------------

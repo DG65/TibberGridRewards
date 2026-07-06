@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.14.2
+
+- **„↩ Zurück zum echten Status" fordert jetzt aktiv einen frischen Push von Tibber an**, statt sich
+  allein auf den zwischengespeicherten Stand zu verlassen: Die laufende WebSocket-Subscription wird
+  ab- und sofort wieder angemeldet (nutzt die bereits offene Verbindung). Der frische Status kommt
+  umgehend als reguläres Update herein und korrigiert die zuvor angezeigte Cache-Näherung automatisch,
+  falls sich der echte Status inzwischen geändert hat.
+
 ## 1.14.1
 
 - **Fix: Simulation ließ sich nicht sauber beenden.** Bisher hatte `Simulate()` keinen Weg zurück zum
