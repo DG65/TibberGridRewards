@@ -294,8 +294,12 @@ echten Einsatz zu warten.
 
 > **Achtung:** Die Simulation löst dabei wirklich die konfigurierten `RequestAction`-Befehle an deine
 > Ziel­variablen aus (z. B. den Leistungsmodus deines Wechselrichters). Das ist beabsichtigt – ein
-> echter Funktionstest –, aber kein rein passives „Anschauen". Die Flex-Geräte-Liste wird während der
-> Simulation kurz geleert und füllt sich beim nächsten echten Tibber-Status wieder.
+> echter Funktionstest –, aber kein rein passives „Anschauen".
+
+Die Simulation bleibt so lange bestehen, bis entweder der nächste echte Tibber-Push eintrifft (kann
+je nach Preisfenster länger dauern) oder du auf **„↩ Zurück zum echten Status"** klickst. Dieser Button
+stellt sofort den zuletzt bekannten echten (nicht simulierten) Status wieder her – inklusive der
+richtigen Flex-Geräte-Liste –, ohne auf den nächsten Push warten zu müssen.
 
 ## Fehlersuche
 

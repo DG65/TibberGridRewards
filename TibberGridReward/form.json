@@ -148,7 +148,7 @@
       "items": [
         {
           "type": "Label",
-          "caption": "Simuliert einen Grid-Reward-Status und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten EMS-Aktionen (Modus + Leistungssollwert werden also wirklich gesetzt!) und der Energiezählung. So lässt sich die eigene EMS-Verdrahtung testen, ohne auf einen echten, oft seltenen Einsatz zu warten. Flex-Geräte-Liste wird während der Simulation kurzzeitig geleert – der nächste echte Tibber-Status stellt sie wieder her."
+          "caption": "Simuliert einen Grid-Reward-Status und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten EMS-Aktionen (Modus + Leistungssollwert werden also wirklich gesetzt!) und der Energiezählung. So lässt sich die eigene EMS-Verdrahtung testen, ohne auf einen echten, oft seltenen Einsatz zu warten. Wichtig: Die Simulation bleibt bestehen, bis entweder der nächste echte Tibber-Push kommt (kann je nach Preisfenster länger dauern) oder du unten auf „Zurück zum echten Status“ klickst."
         },
         {
           "type": "RowLayout",
@@ -169,6 +169,11 @@
               "onClick": "TIBBERGR_Simulate($id, 'shortage');"
             }
           ]
+        },
+        {
+          "type": "Button",
+          "caption": "↩ Zurück zum echten Status",
+          "onClick": "TIBBERGR_ResetSimulation($id);"
         }
       ]
     },

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.14.1
+
+- **Fix: Simulation ließ sich nicht sauber beenden.** Bisher hatte `Simulate()` keinen Weg zurück zum
+  echten Status – die Flex-Geräte-Liste wurde dabei zusätzlich geleert und blieb es bis zum nächsten
+  echten Tibber-Push (kann lange dauern).
+- Der letzte **echte** (nicht simulierte) Status wird jetzt zwischengespeichert (`LastRealStatus`).
+  `Simulate()` leert die Flex-Geräte-Liste nicht mehr, sondern übernimmt die echte Liste weiter.
+- Neuer Button **„↩ Zurück zum echten Status"** (`ResetSimulation()`) stellt den zuletzt echten Status
+  sofort wieder her, ohne auf den nächsten Push zu warten.
+
 ## 1.14.0
 
 - **Neu: Simulation ohne echten Einsatz.** Panel „🧪 Simulation" mit drei Buttons (Verfügbar / Laden

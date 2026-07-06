@@ -66,6 +66,8 @@ class TibberGridReward extends IPSModule
         $this->RegisterAttributeString('EnergyMonthMarker', '');
         $this->RegisterAttributeString('EnergyLast', '{}');
         $this->RegisterAttributeBoolean('EventActive', false);
+        // Letzter ECHTER (nicht simulierter) Status – ermöglicht ein sauberes Beenden der Simulation
+        $this->RegisterAttributeString('LastRealStatus', '{}');
 
         // eindeutige Subscription-ID je Instanz
         $this->RegisterPropertyInteger('SubID', rand(1000, 9999));
@@ -272,6 +274,7 @@ class TibberGridReward extends IPSModule
                 $this->SetTimerInterval('StartWatchdog', 60000);
                 $status = $payload['payload']['data']['gridRewardStatus'] ?? null;
                 if (is_array($status)) {
+                    $this->WriteAttributeString('LastRealStatus', json_encode($status));
                     $this->ProcessGridReward($status);
                 } else {
                     $this->SendDebug(__FUNCTION__, 'next ohne gridRewardStatus: ' . json_encode($payload), 0);
@@ -500,14 +503,33 @@ class TibberGridReward extends IPSModule
             ? ['__typename' => 'GridRewardDelivering', 'reason' => $reason]
             : ['__typename' => 'GridRewardAvailable', 'kind' => 'available'];
 
+        // Echte Flex-Geräte-Liste aus dem letzten realen Status übernehmen, statt sie zu leeren.
+        $cached = json_decode($this->ReadAttributeString('LastRealStatus'), true);
+        $flexDevices = is_array($cached['flexDevices'] ?? null) ? $cached['flexDevices'] : [];
+
         $this->SendDebug(__FUNCTION__, 'Simuliere Status: ' . $reason, 0);
         $this->ProcessGridReward([
             'state'              => $state,
             'rewardCurrency'     => (string) $this->GetValueSafe('Currency'),
             'rewardCurrentMonth' => (float) $this->GetValueSafe('RewardCurrentMonth'),
             'rewardAllTime'      => (float) $this->GetValueSafe('RewardAllTime'),
-            'flexDevices'        => [],
+            'flexDevices'        => $flexDevices,
         ]);
+    }
+
+    /**
+     * Beendet die Simulation und stellt sofort den zuletzt echten (nicht simulierten) Tibber-Status
+     * wieder her – ohne auf den nächsten echten Push warten zu müssen.
+     */
+    public function ResetSimulation(): void
+    {
+        $cached = json_decode($this->ReadAttributeString('LastRealStatus'), true);
+        if (!is_array($cached)) {
+            $this->SendDebug(__FUNCTION__, 'Noch kein echter Status bekannt', 0);
+            return;
+        }
+        $this->SendDebug(__FUNCTION__, 'Stelle letzten echten Status wieder her', 0);
+        $this->ProcessGridReward($cached);
     }
 
     // ---------------------------------------------------------------------
