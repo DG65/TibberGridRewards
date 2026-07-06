@@ -143,6 +143,36 @@
       ]
     },
     {
+      "type": "ExpansionPanel",
+      "caption": "🧪 Simulation (zum Testen ohne echten Einsatz)",
+      "items": [
+        {
+          "type": "Label",
+          "caption": "Simuliert einen Grid-Reward-Status und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten EMS-Aktionen (Modus + Leistungssollwert werden also wirklich gesetzt!) und der Energiezählung. So lässt sich die eigene EMS-Verdrahtung testen, ohne auf einen echten, oft seltenen Einsatz zu warten. Flex-Geräte-Liste wird während der Simulation kurzzeitig geleert – der nächste echte Tibber-Status stellt sie wieder her."
+        },
+        {
+          "type": "RowLayout",
+          "items": [
+            {
+              "type": "Button",
+              "caption": "Verfügbar (kein Einsatz)",
+              "onClick": "TIBBERGR_Simulate($id, 'available');"
+            },
+            {
+              "type": "Button",
+              "caption": "Laden simulieren (excess)",
+              "onClick": "TIBBERGR_Simulate($id, 'excess');"
+            },
+            {
+              "type": "Button",
+              "caption": "Drosselung simulieren (shortage)",
+              "onClick": "TIBBERGR_Simulate($id, 'shortage');"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "type": "Label",
       "caption": "Die Kachel-Darstellung erfolgt über das separate Modul „TibberGridRewardTile“ (eigene Instanz). Dort liegen auch alle Kachel-Einstellungen (Farben, Schrift)."
     }

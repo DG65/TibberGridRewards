@@ -283,6 +283,20 @@ Zeitraum **nicht entlädt** und die Wallbox-Last aus dem Netz kommt – nur so t
 Dann nimmt aktuell kein unterstütztes Gerät an Grid Rewards teil bzw. ist keines registriert. Ohne
 registriertes Flex-Gerät entsteht kein `Delivering`-Signal.
 
+## Simulation ohne echten Einsatz
+
+Echte Grid-Reward-Einsätze sind oft selten und unvorhersehbar – zum Testen der eigenen EMS-Verdrahtung
+gibt es im Formular unter **🧪 Simulation** drei Buttons: **Verfügbar**, **Laden simulieren (excess)**
+und **Drosselung simulieren (shortage)**. Sie durchlaufen exakt denselben Code wie ein echtes
+Tibber-Ereignis – Modusbestimmung, Energiezählung, Einsatz-Log **und** die konfigurierten EMS-Aktionen
+(„🎯 EMS-Steuerung je Grid-Reward-Modus"). So lässt sich die komplette Kette prüfen, ohne auf einen
+echten Einsatz zu warten.
+
+> **Achtung:** Die Simulation löst dabei wirklich die konfigurierten `RequestAction`-Befehle an deine
+> Ziel­variablen aus (z. B. den Leistungsmodus deines Wechselrichters). Das ist beabsichtigt – ein
+> echter Funktionstest –, aber kein rein passives „Anschauen". Die Flex-Geräte-Liste wird während der
+> Simulation kurz geleert und füllt sich beim nächsten echten Tibber-Status wieder.
+
 ## Fehlersuche
 
 - **Status „Login fehlgeschlagen":** E-Mail/Passwort der **Tibber-App** prüfen (nicht der API-Token).

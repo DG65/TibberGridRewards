@@ -485,6 +485,31 @@ class TibberGridReward extends IPSModule
         @$this->SendDataToParent($data);
     }
 
+    /**
+     * Simuliert einen Grid-Reward-Status zu Testzwecken – durchläuft exakt denselben Code wie ein
+     * echtes Tibber-Ereignis (Modusbestimmung, Energiezählung, Einsatz-Log und die konfigurierten
+     * EMS-Aktionen). So kann jeder seine EMS-Verdrahtung testen, ohne auf einen echten, seltenen
+     * Einsatz zu warten. ACHTUNG: löst dabei wirklich die im Formular hinterlegten RequestAction-
+     * Befehle an die konfigurierten Zielvariablen aus.
+     *
+     * @param string $reason 'available' (kein Einsatz), 'excess' (Laden) oder 'shortage' (Drosselung)
+     */
+    public function Simulate(string $reason): void
+    {
+        $state = ($reason === 'excess' || $reason === 'shortage')
+            ? ['__typename' => 'GridRewardDelivering', 'reason' => $reason]
+            : ['__typename' => 'GridRewardAvailable', 'kind' => 'available'];
+
+        $this->SendDebug(__FUNCTION__, 'Simuliere Status: ' . $reason, 0);
+        $this->ProcessGridReward([
+            'state'              => $state,
+            'rewardCurrency'     => (string) $this->GetValueSafe('Currency'),
+            'rewardCurrentMonth' => (float) $this->GetValueSafe('RewardCurrentMonth'),
+            'rewardAllTime'      => (float) $this->GetValueSafe('RewardAllTime'),
+            'flexDevices'        => [],
+        ]);
+    }
+
     // ---------------------------------------------------------------------
     // Verarbeitung des Grid-Reward-Status
     // ---------------------------------------------------------------------

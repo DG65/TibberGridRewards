@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.14.0
+
+- **Neu: Simulation ohne echten Einsatz.** Panel „🧪 Simulation" mit drei Buttons (Verfügbar / Laden
+  simulieren (excess) / Drosselung simulieren (shortage)). Ruft `Simulate($reason)` auf, die exakt
+  denselben Code wie ein echtes Tibber-Ereignis durchläuft (Modusbestimmung, Energiezählung,
+  Einsatz-Log **und** die konfigurierten EMS-Aktionen). Damit lässt sich die eigene EMS-Verdrahtung
+  jederzeit testen, ohne auf einen echten – oft seltenen – Einsatz zu warten. Achtung: löst dabei
+  wirklich die konfigurierten `RequestAction`-Befehle aus.
+
 ## 1.13.0
 
 - **Neu: EMS-Leistungssollwert (optional)** im Panel „🎯 EMS-Steuerung je Grid-Reward-Modus": zweite
