@@ -139,6 +139,34 @@
           "type": "SelectVariable",
           "name": "EmsPowerVariable",
           "caption": "EMS Leistungssollwert (Zielvariable, optional)"
+        },
+        {
+          "type": "Label",
+          "caption": "Optional: für einzelne Modi einen festen Leistungswert vorgeben, statt ihn laufend an die Wallbox-Last anzupassen – z. B. sinnvoll für Modi, in denen dein EMS-Leistungsmodus „Automatik“ ist und der Sollwert ohnehin ignoriert wird. -1 = Wallbox-Bedarf live nachregeln (Standard)."
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "EmsPowerFixed0",
+          "caption": "Feste Leistung Modus 0 – Normal (W, -1 = live nachregeln)",
+          "digits": 0
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "EmsPowerFixed1",
+          "caption": "Feste Leistung Modus 1 – Auto lädt (W, -1 = live nachregeln)",
+          "digits": 0
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "EmsPowerFixed2",
+          "caption": "Feste Leistung Modus 2 – Grid Reward: Laden (W, -1 = live nachregeln)",
+          "digits": 0
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "EmsPowerFixed3",
+          "caption": "Feste Leistung Modus 3 – Drosselung (W, -1 = live nachregeln)",
+          "digits": 0
         }
       ]
     },

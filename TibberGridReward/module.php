@@ -53,6 +53,12 @@ class TibberGridReward extends IPSModule
         // Optional: Zielvariable für die Leistungsvorgabe -> wird fortlaufend auf
         // GridRewardWallboxRequest gesetzt (genau so viel Leistung, wie das Auto gerade braucht)
         $this->RegisterPropertyInteger('EmsPowerVariable', 0);
+        // Optionaler fester Leistungswert je Modus (-1 = Wallbox-Bedarf live nachregeln, Standard) –
+        // z. B. sinnvoll für Automatik-Modi, in denen der Leistungssollwert ohnehin ignoriert wird.
+        $this->RegisterPropertyInteger('EmsPowerFixed0', -1);
+        $this->RegisterPropertyInteger('EmsPowerFixed1', -1);
+        $this->RegisterPropertyInteger('EmsPowerFixed2', -1);
+        $this->RegisterPropertyInteger('EmsPowerFixed3', -1);
         $this->RegisterAttributeFloat('LastAppliedPower', -1.0);
 
         $this->RegisterAttributeString('JWT', '');
@@ -771,30 +777,37 @@ class TibberGridReward extends IPSModule
         // „Wallbox aus Netz" gilt, wenn das Auto lädt – normal (1) oder bei Grid-Reward-Laden (2).
         $request = ($mode === 1 || $mode === 2) ? $total : 0.0;
         $this->SetValueIfExists('GridRewardWallboxRequest', $request);
-        $this->ApplyPowerSetpoint($request);
+        $this->ApplyPowerSetpoint($request, $mode);
     }
 
     /**
-     * Setzt fortlaufend die optionale Leistungssollwert-Zielvariable auf den benötigten Netzbezug
-     * (GridRewardWallboxRequest) – so kauft das EMS immer nur so viel Energie ein, wie das Auto gerade
-     * tatsächlich braucht. Schreibt nur bei relevanter Änderung (>= 1 W), um Aktor/Log nicht zu spammen.
+     * Setzt die optionale Leistungssollwert-Zielvariable: normalerweise fortlaufend auf den benötigten
+     * Netzbezug (GridRewardWallboxRequest), sodass das EMS immer nur so viel Energie einkauft, wie das
+     * Auto gerade tatsächlich braucht. Ist für den aktuellen Modus ein fester Wert konfiguriert
+     * (EmsPowerFixed<mode> >= 0, z. B. für Automatik-Modi, in denen der Sollwert ohnehin ignoriert
+     * wird), wird stattdessen dieser feste Wert verwendet – ohne der Wallbox-Last nachzuregeln.
+     * Schreibt nur bei relevanter Änderung (>= 1 W), um Aktor/Log nicht zu spammen.
      */
-    private function ApplyPowerSetpoint(float $power): void
+    private function ApplyPowerSetpoint(float $power, int $mode): void
     {
         $targetID = $this->ReadPropertyInteger('EmsPowerVariable');
         if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
             return;
         }
-        if (abs($power - $this->ReadAttributeFloat('LastAppliedPower')) < 1.0) {
+        $fixed = ($mode >= 0 && $mode <= 3) ? $this->ReadPropertyInteger('EmsPowerFixed' . $mode) : -1;
+        $value = ($fixed >= 0) ? (float) $fixed : $power;
+
+        if (abs($value - $this->ReadAttributeFloat('LastAppliedPower')) < 1.0) {
             return;
         }
-        $value = $this->ParseActionValue($targetID, (string) $power);
-        if ($value === null) {
+        $parsed = $this->ParseActionValue($targetID, (string) $value);
+        if ($parsed === null) {
             return;
         }
-        @RequestAction($targetID, $value);
-        $this->WriteAttributeFloat('LastAppliedPower', $power);
-        $this->SendDebug(__FUNCTION__, 'Leistungssollwert -> Variable ' . $targetID . ' = ' . var_export($value, true), 0);
+        @RequestAction($targetID, $parsed);
+        $this->WriteAttributeFloat('LastAppliedPower', $value);
+        $this->SendDebug(__FUNCTION__, 'Leistungssollwert -> Variable ' . $targetID . ' = ' . var_export($parsed, true)
+            . ($fixed >= 0 ? ' (fest für Modus ' . $mode . ')' : ' (Wallbox-Bedarf)'), 0);
     }
 
     /**

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.15.0
+
+- **Fester Leistungswert je Modus (optional).** Neue Felder `EmsPowerFixed0..3` (Standard `-1` = weiter
+  live nachregeln): Ist für den aktuellen Modus ein Wert ≥ 0 hinterlegt, setzt das Modul den
+  Leistungssollwert auf diesen festen Wert, statt ihn laufend an die Wallbox-Last anzupassen. Gedacht
+  für Modi, in denen der EMS-Leistungsmodus „Automatik" ist und der Sollwert ohnehin ignoriert wird.
+
 ## 1.14.2
 
 - **„↩ Zurück zum echten Status" fordert jetzt aktiv einen frischen Push von Tibber an**, statt sich

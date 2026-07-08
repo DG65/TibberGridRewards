@@ -204,6 +204,11 @@ Datenmodul unter **🎯 EMS-Steuerung je Grid-Reward-Modus** zwei Bausteine:
    braucht. So kauft das EMS immer nur so viel Energie aus dem Netz ein, wie fürs Laden benötigt wird
    (geschrieben wird nur bei relevanter Änderung, um den Aktor nicht zu spammen).
 
+   Für einzelne Modi lässt sich statt der Live-Nachführung ein **fester Leistungswert** hinterlegen
+   (`-1` = weiterhin live nachregeln, Standard). Sinnvoll z. B. für Modi, in denen der EMS-Leistungsmodus
+   auf „Automatik" steht und der Sollwert ohnehin ignoriert wird – dort muss nicht ständig der
+   Wallbox-Last nachgeregelt werden, ein fester Wert (z. B. die maximale Leistung) genügt.
+
 Das deckt eine einfache, statische Zuordnung ab (z. B. „Modus 2 → Batterie-Laden" + „Leistung = aktuelle
 Wallbox-Last"). Für komplexere, dynamische Logik (z. B. „nur laden, wenn die Batterie beim
 Einsatz-Start bereits lud, und die Leistung aus der vorherigen Einstellung + Wallbox-Leistung
