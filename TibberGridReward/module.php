@@ -44,22 +44,25 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyFloat('ChargingThreshold', 100.0);
         $this->RegisterPropertyInteger('MaxAge', 120);
 
-        // EMS-Leistungsmodus je Grid-Reward-Modus (0-3): eine Zielvariable, vier Werte
+        // Automationen je Grid-Reward-Modus (0-3): beliebige Zielvariablen, je Zeile bis zu 2
+        // gleichzeitig (typischer Fall: EMS-Betriebsmodus + Leistungssollwert in einem Rutsch).
+        $this->RegisterPropertyString('Automations', '[]');
+        $this->RegisterAttributeString('LastAppliedValues', '{}');
+        $this->RegisterAttributeBoolean('EmsAutomationsMigrated', false);
+
+        // Legacy (bis 1.15.x) – nicht mehr im Formular, nur für die einmalige Migration nach
+        // "Automations" beim ersten Start dieser Version noch registriert. Können in einer
+        // späteren Version entfernt werden, sobald Bestandsinstallationen migriert sind.
         $this->RegisterPropertyInteger('EmsModeVariable', 0);
         $this->RegisterPropertyInteger('EmsModeValue0', 0);
         $this->RegisterPropertyInteger('EmsModeValue1', 0);
         $this->RegisterPropertyInteger('EmsModeValue2', 0);
         $this->RegisterPropertyInteger('EmsModeValue3', 0);
-        // Optional: Zielvariable für die Leistungsvorgabe -> wird fortlaufend auf
-        // GridRewardWallboxRequest gesetzt (genau so viel Leistung, wie das Auto gerade braucht)
         $this->RegisterPropertyInteger('EmsPowerVariable', 0);
-        // Optionaler fester Leistungswert je Modus (-1 = Wallbox-Bedarf live nachregeln, Standard) –
-        // z. B. sinnvoll für Automatik-Modi, in denen der Leistungssollwert ohnehin ignoriert wird.
         $this->RegisterPropertyInteger('EmsPowerFixed0', -1);
         $this->RegisterPropertyInteger('EmsPowerFixed1', -1);
         $this->RegisterPropertyInteger('EmsPowerFixed2', -1);
         $this->RegisterPropertyInteger('EmsPowerFixed3', -1);
-        $this->RegisterAttributeFloat('LastAppliedPower', -1.0);
 
         $this->RegisterAttributeString('JWT', '');
         $this->RegisterAttributeInteger('JWT_Exp', 0);
@@ -100,6 +103,12 @@ class TibberGridReward extends IPSModule
 
         // Standard-Darstellung erzwingen (räumt evtl. aus 1.1.0 verbliebenen HTML-SDK-Typ auf)
         $this->SetVisualizationType(0);
+
+        // Einmalige Migration der alten EMS-Felder (bis 1.15.x) nach "Automations". Löst bei Bedarf
+        // selbst ein erneutes ApplyChanges aus (siehe Methode) – in dem Fall hier abbrechen.
+        if ($this->MigrateLegacyEmsConfig()) {
+            return;
+        }
 
         $this->RegisterProfiles();
 
@@ -171,63 +180,7 @@ class TibberGridReward extends IPSModule
         }
         unset($element);
 
-        // EMS-Leistungsmodus-Felder: falls die Zielvariable ein Profil mit Textwerten hat (z. B.
-        // "Automatik", "Batterie-Laden"), die vier Werte-Felder als Dropdown mit diesen Bezeichnungen
-        // anzeigen statt als rohe Zahleneingabe.
-        $assocOptions = $this->GetEmsModeAssociationOptions();
-        if ($assocOptions !== null) {
-            $names = ['EmsModeValue0', 'EmsModeValue1', 'EmsModeValue2', 'EmsModeValue3'];
-            $this->ReplaceFormElements($form['elements'], $names, function (array &$el) use ($assocOptions) {
-                $el['type'] = 'Select';
-                $el['options'] = $assocOptions;
-                unset($el['digits']);
-            });
-        }
-
         return json_encode($form);
-    }
-
-    /**
-     * Liefert die Dropdown-Optionen aus dem Variablenprofil der EMS-Leistungsmodus-Zielvariable
-     * (Value + Name je Assoziation), oder null, wenn kein Profil mit Assoziationen vorhanden ist.
-     */
-    private function GetEmsModeAssociationOptions(): ?array
-    {
-        $targetID = $this->ReadPropertyInteger('EmsModeVariable');
-        if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
-            return null;
-        }
-        $info = IPS_GetVariable($targetID);
-        $profileName = $info['VariableCustomProfile'] !== '' ? $info['VariableCustomProfile'] : $info['VariableProfile'];
-        if ($profileName === '' || !IPS_VariableProfileExists($profileName)) {
-            return null;
-        }
-        $profile = IPS_GetVariableProfile($profileName);
-        if (empty($profile['Associations'])) {
-            return null;
-        }
-        $options = [];
-        foreach ($profile['Associations'] as $assoc) {
-            $options[] = ['caption' => $assoc['Value'] . ' – ' . $assoc['Name'], 'value' => (int) $assoc['Value']];
-        }
-        return $options;
-    }
-
-    /**
-     * Sucht Formularelemente per Name (auch verschachtelt in ExpansionPanel-"items") und wendet
-     * darauf $callback an.
-     */
-    private function ReplaceFormElements(array &$elements, array $names, callable $callback): void
-    {
-        foreach ($elements as &$el) {
-            if (isset($el['name']) && in_array($el['name'], $names, true)) {
-                $callback($el);
-            }
-            if (isset($el['items']) && is_array($el['items'])) {
-                $this->ReplaceFormElements($el['items'], $names, $callback);
-            }
-        }
-        unset($el);
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
@@ -777,41 +730,14 @@ class TibberGridReward extends IPSModule
         // „Wallbox aus Netz" gilt, wenn das Auto lädt – normal (1) oder bei Grid-Reward-Laden (2).
         $request = ($mode === 1 || $mode === 2) ? $total : 0.0;
         $this->SetValueIfExists('GridRewardWallboxRequest', $request);
-        $this->ApplyPowerSetpoint($request, $mode);
-    }
-
-    /**
-     * Setzt die optionale Leistungssollwert-Zielvariable: normalerweise fortlaufend auf den benötigten
-     * Netzbezug (GridRewardWallboxRequest), sodass das EMS immer nur so viel Energie einkauft, wie das
-     * Auto gerade tatsächlich braucht. Ist für den aktuellen Modus ein fester Wert konfiguriert
-     * (EmsPowerFixed<mode> >= 0, z. B. für Automatik-Modi, in denen der Sollwert ohnehin ignoriert
-     * wird), wird stattdessen dieser feste Wert verwendet – ohne der Wallbox-Last nachzuregeln.
-     * Schreibt nur bei relevanter Änderung (>= 1 W), um Aktor/Log nicht zu spammen.
-     */
-    private function ApplyPowerSetpoint(float $power, int $mode): void
-    {
-        $targetID = $this->ReadPropertyInteger('EmsPowerVariable');
-        if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
-            return;
-        }
-        $fixed = ($mode >= 0 && $mode <= 3) ? $this->ReadPropertyInteger('EmsPowerFixed' . $mode) : -1;
-        $value = ($fixed >= 0) ? (float) $fixed : $power;
-
-        if (abs($value - $this->ReadAttributeFloat('LastAppliedPower')) < 1.0) {
-            return;
-        }
-        $parsed = $this->ParseActionValue($targetID, (string) $value);
-        if ($parsed === null) {
-            return;
-        }
-        @RequestAction($targetID, $parsed);
-        $this->WriteAttributeFloat('LastAppliedPower', $value);
-        $this->SendDebug(__FUNCTION__, 'Leistungssollwert -> Variable ' . $targetID . ' = ' . var_export($parsed, true)
-            . ($fixed >= 0 ? ' (fest für Modus ' . $mode . ')' : ' (Wallbox-Bedarf)'), 0);
+        $this->ApplyAutomations($mode, $request);
     }
 
     /**
      * Setzt den EMS-Modus und steuert die Energie-/Log-Flanken (Grid-Reward-Laden = excess = Modus 2).
+     * Die Automationen selbst werden nicht hier, sondern zentral in SumWallboxes() ausgeführt – so
+     * wird sowohl bei jedem Moduswechsel als auch bei jeder Wallbox-Änderung neu ausgewertet (nötig
+     * für Zeilen mit dem WALLBOX-Platzhalter, die live nachgeführt werden sollen).
      */
     private function UpdateMode(bool $charging): void
     {
@@ -825,33 +751,70 @@ class TibberGridReward extends IPSModule
         } elseif ($newMode !== 2 && $oldMode === 2) {
             $this->EndGridRewardEvent();
         }
-        if ($newMode !== $oldMode) {
-            $this->ApplyModeActions($newMode);
-        }
         $this->SetValueIfExists('GridRewardMode', $newMode);
     }
 
     /**
-     * Setzt beim Moduswechsel den konfigurierten EMS-Leistungsmodus: eine Zielvariable, deren Wert je
-     * Grid-Reward-Modus (0-3) im Formular hinterlegt ist. So kann jeder Nutzer selbst festlegen, wie
-     * sein EMS/Wechselrichter reagiert, ohne ein eigenes Skript schreiben zu müssen.
+     * Führt alle aktiven Automationszeilen für den aktuellen Grid-Reward-Modus aus: pro Zeile bis zu
+     * zwei Ziel­variablen gleichzeitig (typisch: EMS-Betriebsmodus + Leistungssollwert in einem
+     * Rutsch). So kann jeder Nutzer frei festlegen, wie sein EMS/Wechselrichter reagiert, ohne ein
+     * eigenes Skript zu schreiben – auch mit mehr als zwei Datenpunkten (einfach weitere Zeilen für
+     * denselben Modus anlegen).
      */
-    private function ApplyModeActions(int $mode): void
+    private function ApplyAutomations(int $mode, float $wallboxRequest): void
     {
-        if ($mode < 0 || $mode > 3) {
+        $rows = json_decode($this->ReadPropertyString('Automations'), true);
+        if (!is_array($rows)) {
             return;
         }
-        $targetID = $this->ReadPropertyInteger('EmsModeVariable');
+        foreach ($rows as $row) {
+            if (empty($row['Active']) || (int) ($row['Mode'] ?? -1) !== $mode) {
+                continue;
+            }
+            $this->ApplyAutomationTarget((int) ($row['Target1'] ?? 0), (string) ($row['Value1'] ?? ''), $wallboxRequest);
+            $this->ApplyAutomationTarget((int) ($row['Target2'] ?? 0), (string) ($row['Value2'] ?? ''), $wallboxRequest);
+        }
+    }
+
+    /**
+     * Setzt eine einzelne Zielvariable einer Automationszeile. Der Platzhalter „WALLBOX" (beliebige
+     * Groß-/Kleinschreibung) wird durch die aktuell benötigte Wallbox-Leistung ersetzt – damit lässt
+     * sich jede beliebige Zielvariable live nachführen, nicht nur ein fest benanntes Leistungsfeld.
+     * Schreibt je Zielvariable nur bei tatsächlicher Änderung, um Aktor/Log nicht zu spammen.
+     */
+    private function ApplyAutomationTarget(int $targetID, string $raw, float $wallboxRequest): void
+    {
         if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
             return;
         }
-        $raw = (string) $this->ReadPropertyInteger('EmsModeValue' . $mode);
-        $value = $this->ParseActionValue($targetID, $raw);
+        $raw = trim($raw);
+        if ($raw === '') {
+            return;
+        }
+        $resolved = (strtoupper($raw) === 'WALLBOX') ? (string) $wallboxRequest : $raw;
+        $value = $this->ParseActionValue($targetID, $resolved);
         if ($value === null) {
             return;
         }
+
+        $last = json_decode($this->ReadAttributeString('LastAppliedValues'), true);
+        if (!is_array($last)) {
+            $last = [];
+        }
+        $key = (string) $targetID;
+        $prev = $last[$key] ?? null;
+        $unchanged = is_float($value)
+            ? ($prev !== null && is_numeric($prev) && abs((float) $prev - $value) < 1.0)
+            : ($prev === $value);
+        if ($unchanged) {
+            return;
+        }
+
         @RequestAction($targetID, $value);
-        $this->SendDebug(__FUNCTION__, 'Modus ' . $mode . ' -> EMS-Leistungsmodus ' . $targetID . ' = ' . var_export($value, true), 0);
+        $last[$key] = $value;
+        $this->WriteAttributeString('LastAppliedValues', json_encode($last));
+        $this->SendDebug(__FUNCTION__, 'Variable ' . $targetID . ' = ' . var_export($value, true)
+            . (strtoupper(trim($raw)) === 'WALLBOX' ? ' (WALLBOX-Bedarf)' : ''), 0);
     }
 
     /**
@@ -873,6 +836,52 @@ class TibberGridReward extends IPSModule
             default:
                 return null;
         }
+    }
+
+    /**
+     * Einmalige Migration der alten EMS-Felder (bis 1.15.x: EmsModeVariable/-Value0..3,
+     * EmsPowerVariable/-Fixed0..3) in das neue generische "Automations"-Format – rekonstruiert
+     * bestehende Konfigurationen 1:1 als vier Automationszeilen (eine je Modus, je Zeile Zielvariable
+     * 1 = alter EMS-Modus-Schalter, Zielvariable 2 = alte Leistungsvariable). Läuft nur einmal (Attribut
+     * EmsAutomationsMigrated) und nur, wenn noch keine eigenen Automationen konfiguriert sind.
+     *
+     * @return bool true, wenn migriert wurde (Aufrufer sollte danach return; da ApplyChanges erneut
+     *              angestoßen wird)
+     */
+    private function MigrateLegacyEmsConfig(): bool
+    {
+        if ($this->ReadAttributeBoolean('EmsAutomationsMigrated')) {
+            return false;
+        }
+        $this->WriteAttributeBoolean('EmsAutomationsMigrated', true);
+
+        $current = json_decode($this->ReadPropertyString('Automations'), true);
+        if (!empty($current)) {
+            return false; // schon eigene Automationen konfiguriert -> nichts überschreiben
+        }
+        $modeVar = $this->ReadPropertyInteger('EmsModeVariable');
+        if ($modeVar <= 0) {
+            return false; // nichts zu migrieren
+        }
+        $powerVar = $this->ReadPropertyInteger('EmsPowerVariable');
+
+        $rows = [];
+        for ($m = 0; $m <= 3; $m++) {
+            $fixed = $this->ReadPropertyInteger('EmsPowerFixed' . $m);
+            $rows[] = [
+                'Active'  => true,
+                'Mode'    => $m,
+                'Target1' => $modeVar,
+                'Value1'  => (string) $this->ReadPropertyInteger('EmsModeValue' . $m),
+                'Target2' => $powerVar,
+                'Value2'  => $powerVar > 0 ? ($fixed >= 0 ? (string) $fixed : 'WALLBOX') : '',
+            ];
+        }
+
+        $this->SendDebug(__FUNCTION__, 'Migriere alte EMS-Konfiguration nach Automations: ' . json_encode($rows), 0);
+        IPS_SetProperty($this->InstanceID, 'Automations', json_encode($rows));
+        IPS_ApplyChanges($this->InstanceID);
+        return true;
     }
 
     /**

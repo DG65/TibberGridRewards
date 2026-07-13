@@ -186,35 +186,43 @@ Die Fälle „Preis ok / Freigabe" und „Zwangsbeladen" fallen bewusst in **Wer
 (aktiv bei Wert 1 **und** 2). Energiezählung und Einsatz-Log beziehen sich auf **`excess` (Wert 2)** –
 den Zeitraum, in dem für die Vergütung tatsächlich aus dem Netz geladen wird.
 
-### EMS-Steuerung je Modus – ohne eigenes Skript konfigurierbar
+### EMS-Automationen je Modus – ohne eigenes Skript konfigurierbar
 
-Damit **jeder Nutzer** selbst festlegen kann, wie sein EMS/Wechselrichter reagiert, gibt es im
-Datenmodul unter **🎯 EMS-Steuerung je Grid-Reward-Modus** zwei Bausteine:
+Damit **jeder Nutzer** frei festlegen kann, wie sein EMS/Wechselrichter reagiert, gibt es im
+Datenmodul unter **🎯 EMS-Steuerung je Grid-Reward-Modus** eine Liste von **Automationszeilen**.
+Jede Zeile besteht aus:
 
-1. **Leistungsmodus (Betriebsart):** Man wählt **eine Zielvariable** – den Betriebsmodus-Schalter des
-   eigenen Wechselrichters/EMS (z. B. `EMSPowerMode`) – und legt für jeden der 4 Grid-Reward-Modi (0–3)
-   fest, welchen Wert diese eine Variable annehmen soll. Beim Moduswechsel setzt das Modul den
-   passenden Wert automatisch per `RequestAction`. Hat die Zielvariable ein **Variablenprofil mit
-   Textwerten** (z. B. „Automatik", „Batterie-Laden" – wie bei vielen Wechselrichter-Modulen üblich),
-   erscheinen die vier Felder automatisch als **Dropdown mit diesen Bezeichnungen** statt als rohe
-   Zahleneingabe.
-2. **Leistungssollwert (optional):** Eine zweite, ebenfalls per `SelectVariable` wählbare Zielvariable
-   für die Leistungsvorgabe (z. B. `EMS Leistungseinstellung`). Sie wird **fortlaufend** auf
-   `GridRewardWallboxRequest` gesetzt – also exakt auf die Leistung, die das Auto gerade tatsächlich
-   braucht. So kauft das EMS immer nur so viel Energie aus dem Netz ein, wie fürs Laden benötigt wird
-   (geschrieben wird nur bei relevanter Änderung, um den Aktor nicht zu spammen).
+- dem **Grid-Reward-Modus** (0–3), bei dessen Eintritt sie ausgeführt wird,
+- **Zielvariable 1 + Wert 1** (Pflicht),
+- **Zielvariable 2 + Wert 2** (optional) – für den typischen Fall, dass ein Grid-Reward-Ereignis
+  **zwei Datenpunkte gleichzeitig** braucht (z. B. den Betriebsmodus-Schalter deines Wechselrichters
+  **und** einen Leistungssollwert) – beides in **einer** Zeile, ohne zwei getrennte Konfigurationen.
 
-   Für einzelne Modi lässt sich statt der Live-Nachführung ein **fester Leistungswert** hinterlegen
-   (`-1` = weiterhin live nachregeln, Standard). Sinnvoll z. B. für Modi, in denen der EMS-Leistungsmodus
-   auf „Automatik" steht und der Sollwert ohnehin ignoriert wird – dort muss nicht ständig der
-   Wallbox-Last nachgeregelt werden, ein fester Wert (z. B. die maximale Leistung) genügt.
+Beim Wechsel in den passenden Modus setzt das Modul beide Zielvariablen automatisch per
+`RequestAction`. Der eingegebene Wert wird selbsttätig in den Typ der Zielvariable umgewandelt (Zahl,
+`true`/`false` oder Text). Für den Wert gibt es einen besonderen Platzhalter:
 
-Das deckt eine einfache, statische Zuordnung ab (z. B. „Modus 2 → Batterie-Laden" + „Leistung = aktuelle
-Wallbox-Last"). Für komplexere, dynamische Logik (z. B. „nur laden, wenn die Batterie beim
+- **`WALLBOX`** (Groß-/Kleinschreibung egal) wird durch die aktuell benötigte Wallbox-Leistung ersetzt
+  und **laufend live nachgeführt**, solange der Modus aktiv bleibt – so kauft das EMS immer nur so
+  viel Energie aus dem Netz ein, wie fürs Laden tatsächlich gebraucht wird. Geschrieben wird nur bei
+  relevanter Änderung, um den Aktor nicht zu spammen.
+- Jeder andere Text/Zahl wird als **fester Wert** verwendet (z. B. sinnvoll für Modi, in denen der
+  Leistungssollwert ohnehin ignoriert wird, weil der Betriebsmodus „Automatik" ist).
+
+Es sind **beliebig viele Zeilen pro Modus** erlaubt – braucht dein EMS mehr als zwei Datenpunkte für
+einen Übergang, legst du einfach eine weitere Zeile mit demselben Modus an.
+
+Das deckt eine einfache, statische Zuordnung ab (z. B. „Modus 2 → Betriebsmodus = Stromeinkauf +
+Leistung = `WALLBOX`"). Für komplexere, dynamische Logik (z. B. „nur laden, wenn die Batterie beim
 Einsatz-Start bereits lud, und die Leistung aus der vorherigen Einstellung + Wallbox-Leistung
 berechnen") bleibt ein eigenes Ereignis-Skript auf `GridRewardMode` die passendere Wahl – das Modul
 liefert dafür weiterhin alle nötigen Werte (`GridRewardMode`, `GridRewardWallboxRequest`,
 `WallboxPowerTotal`).
+
+> **Update von einer älteren Version:** Eine bestehende Konfiguration aus den Feldern
+> „EMS Leistungsmodus/-Sollwert" (bis Version 1.15.x) wird beim ersten Start automatisch und
+> einmalig als vier äquivalente Automationszeilen (eine je Modus) übernommen – keine manuelle
+> Nacharbeit nötig.
 
 ### Wirtschaftlich optimal steuern (Strategie fürs EMS)
 

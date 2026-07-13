@@ -5,6 +5,36 @@
       "caption": "Tibber Grid Rewards – liefert den Grid-Reward-Status (u. a. das 'Delivering'-Signal) als Variablen. Voraussetzung: Teilnahme an Grid Rewards mit einem unterstützten Gerät (z. B. Tesla). Ergänzt das Modul 'Tibber V.2' (offizielle API)."
     },
     {
+      "type": "ExpansionPanel",
+      "caption": "❓ Hilfe & Dokumentation",
+      "items": [
+        {
+          "type": "Label",
+          "caption": "1) EINRICHTEN: E-Mail/Passwort deiner Tibber-App eintragen, Aktiv anhaken, Übernehmen. Dann unten „Zuhause-Liste neu laden“ klicken, dein Zuhause auswählen, erneut Übernehmen. Die Verbindung steht, sobald der Status oben „Aktiv“ zeigt."
+        },
+        {
+          "type": "Label",
+          "caption": "2) WALLBOXEN (optional, aber empfohlen): Im Panel „🔌 Wallboxen“ die Wirkleistungs-Datenpunkte deiner Wallbox(en) eintragen. Daraus berechnet das Modul, ob und wie viel gerade geladen wird – Grundlage für den Grid-Reward-Modus und die EMS-Automationen."
+        },
+        {
+          "type": "Label",
+          "caption": "3) GRID-REWARD-MODUS verstehen (Variable „Grid-Reward-Modus“, 0–3):\n0 Normal – kein Einsatz, Auto lädt nicht.\n1 Auto lädt (kein Reward) – Smart-Charge/Zwangsbeladen/Freigabe: Strom soll aus dem Netz kommen, nicht aus der Batterie.\n2 Grid Reward: Laden (Tibber-Status „excess“) – Netzüberschuss, belohnt: Auto UND Batterie aus dem Netz laden.\n3 Grid Reward: Drosselung (Tibber-Status „shortage“) – Netzknappheit: Auto aus, Haus möglichst aus Batterie/PV versorgen, Netzbezug minimieren."
+        },
+        {
+          "type": "Label",
+          "caption": "4) EMS-AUTOMATIONEN (Panel „🎯 EMS-Steuerung“): Für jeden Modus legst du beliebig viele Zeilen an, die beim Wechsel in diesen Modus automatisch ausgeführt werden. Jede Zeile kann bis zu ZWEI Zielvariablen gleichzeitig setzen – der typische Fall für einen Grid-Reward-Einsatz (z. B. EMS-Betriebsmodus UND Leistungssollwert in einem Rutsch). Der eingegebene Wert wird automatisch in den Typ der Zielvariable umgewandelt (Zahl, true/false oder Text). Der Platzhalter „WALLBOX“ (egal ob groß/klein geschrieben) wird durch die aktuell benötigte Wallbox-Leistung ersetzt und laufend live nachgeführt – ideal für einen Leistungssollwert. Brauchst du mehr als zwei Zielvariablen für einen Modus, legst du einfach eine weitere Zeile mit demselben Modus an."
+        },
+        {
+          "type": "Label",
+          "caption": "5) TESTEN OHNE ECHTEN EINSATZ (Panel „🧪 Simulation“): Über die Buttons lässt sich jeder der drei Zustände (Verfügbar/Laden/Drosselung) auslösen und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten Automationen. „↩ Zurück zum echten Status“ beendet die Simulation und holt aktiv den aktuellen echten Stand von Tibber."
+        },
+        {
+          "type": "Label",
+          "caption": "Ausführliche Dokumentation, Beispiele und Hintergründe: https://github.com/DG65/TibberGridRewards"
+        }
+      ]
+    },
+    {
       "type": "CheckBox",
       "name": "Active",
       "caption": "Aktiv"
@@ -100,73 +130,67 @@
       "items": [
         {
           "type": "Label",
-          "caption": "Wähle die Zielvariable deines EMS-Leistungsmodus (z. B. der Betriebsmodus-Schalter deines Wechselrichters/EMS). Für jeden der 4 Grid-Reward-Modi legst du fest, welchen Wert diese eine Variable annehmen soll. Hat die Zielvariable ein Variablenprofil mit Textwerten (z. B. „Automatik“, „Batterie-Laden“), erscheinen hier automatisch die passenden Bezeichnungen zur Auswahl – sonst trägst du die rohe Zahl ein. Beim Wechsel des Grid-Reward-Modus wird der jeweils hinterlegte Wert automatisch per RequestAction gesetzt."
+          "caption": "Beliebig viele Automationszeilen je Grid-Reward-Modus (0 Normal · 1 Auto lädt · 2 Grid Reward: Laden · 3 Drosselung). Jede aktive Zeile wird beim Wechsel in ihren Modus ausgeführt und kann bis zu zwei Zielvariablen gleichzeitig setzen. Werte werden automatisch in den Typ der Zielvariable umgewandelt (Zahl, true/false oder Text). Platzhalter „WALLBOX“ = aktuell benötigte Wallbox-Leistung, wird laufend live nachgeführt. Mehr als zwei Datenpunkte für einen Modus? Einfach eine weitere Zeile mit demselben Modus anlegen."
         },
         {
-          "type": "SelectVariable",
-          "name": "EmsModeVariable",
-          "caption": "EMS Leistungsmodus (Zielvariable)"
-        },
-        {
-          "type": "NumberSpinner",
-          "name": "EmsModeValue0",
-          "caption": "Modus 0 – Normal",
-          "digits": 0
-        },
-        {
-          "type": "NumberSpinner",
-          "name": "EmsModeValue1",
-          "caption": "Modus 1 – Auto lädt (kein Reward)",
-          "digits": 0
-        },
-        {
-          "type": "NumberSpinner",
-          "name": "EmsModeValue2",
-          "caption": "Modus 2 – Grid Reward: Laden",
-          "digits": 0
-        },
-        {
-          "type": "NumberSpinner",
-          "name": "EmsModeValue3",
-          "caption": "Modus 3 – Grid Reward: Drosselung",
-          "digits": 0
-        },
-        {
-          "type": "Label",
-          "caption": "Optional: Zielvariable für die Leistungsvorgabe deines EMS (z. B. „EMS Leistungseinstellung“). Sie wird fortlaufend auf die gerade benötigte Wallbox-Leistung gesetzt (Variable „Netzbezug-Anforderung“, GridRewardWallboxRequest) – so wird immer nur so viel Energie aus dem Netz eingekauft, wie fürs Auto tatsächlich gebraucht wird. Leer lassen, wenn dein EMS die Leistung selbst regelt oder du sie per eigenem Skript setzt."
-        },
-        {
-          "type": "SelectVariable",
-          "name": "EmsPowerVariable",
-          "caption": "EMS Leistungssollwert (Zielvariable, optional)"
-        },
-        {
-          "type": "Label",
-          "caption": "Optional: für einzelne Modi einen festen Leistungswert vorgeben, statt ihn laufend an die Wallbox-Last anzupassen – z. B. sinnvoll für Modi, in denen dein EMS-Leistungsmodus „Automatik“ ist und der Sollwert ohnehin ignoriert wird. -1 = Wallbox-Bedarf live nachregeln (Standard)."
-        },
-        {
-          "type": "NumberSpinner",
-          "name": "EmsPowerFixed0",
-          "caption": "Feste Leistung Modus 0 – Normal (W, -1 = live nachregeln)",
-          "digits": 0
-        },
-        {
-          "type": "NumberSpinner",
-          "name": "EmsPowerFixed1",
-          "caption": "Feste Leistung Modus 1 – Auto lädt (W, -1 = live nachregeln)",
-          "digits": 0
-        },
-        {
-          "type": "NumberSpinner",
-          "name": "EmsPowerFixed2",
-          "caption": "Feste Leistung Modus 2 – Grid Reward: Laden (W, -1 = live nachregeln)",
-          "digits": 0
-        },
-        {
-          "type": "NumberSpinner",
-          "name": "EmsPowerFixed3",
-          "caption": "Feste Leistung Modus 3 – Drosselung (W, -1 = live nachregeln)",
-          "digits": 0
+          "type": "List",
+          "name": "Automations",
+          "caption": "Automationen",
+          "rowCount": 8,
+          "add": true,
+          "delete": true,
+          "columns": [
+            {
+              "caption": "Aktiv",
+              "name": "Active",
+              "width": "60px",
+              "add": true,
+              "edit": { "type": "CheckBox" }
+            },
+            {
+              "caption": "Grid-Reward-Modus",
+              "name": "Mode",
+              "width": "190px",
+              "add": 0,
+              "edit": {
+                "type": "Select",
+                "options": [
+                  { "caption": "0 – Normal", "value": 0 },
+                  { "caption": "1 – Auto lädt (kein Reward)", "value": 1 },
+                  { "caption": "2 – Grid Reward: Laden", "value": 2 },
+                  { "caption": "3 – Grid Reward: Drosselung", "value": 3 }
+                ]
+              }
+            },
+            {
+              "caption": "Zielvariable 1",
+              "name": "Target1",
+              "width": "auto",
+              "add": 0,
+              "edit": { "type": "SelectVariable" }
+            },
+            {
+              "caption": "Wert 1",
+              "name": "Value1",
+              "width": "120px",
+              "add": "",
+              "edit": { "type": "ValidationTextBox" }
+            },
+            {
+              "caption": "Zielvariable 2 (optional)",
+              "name": "Target2",
+              "width": "auto",
+              "add": 0,
+              "edit": { "type": "SelectVariable" }
+            },
+            {
+              "caption": "Wert 2 (optional)",
+              "name": "Value2",
+              "width": "120px",
+              "add": "",
+              "edit": { "type": "ValidationTextBox" }
+            }
+          ]
         }
       ]
     },
@@ -176,7 +200,7 @@
       "items": [
         {
           "type": "Label",
-          "caption": "Simuliert einen Grid-Reward-Status und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten EMS-Aktionen (Modus + Leistungssollwert werden also wirklich gesetzt!) und der Energiezählung. So lässt sich die eigene EMS-Verdrahtung testen, ohne auf einen echten, oft seltenen Einsatz zu warten. Wichtig: Die Simulation bleibt bestehen, bis entweder der nächste echte Tibber-Push kommt oder du unten auf „Zurück zum echten Status“ klickst – das fordert aktiv einen frischen Status direkt von Tibber an, statt nur auf den nächsten Push zu warten."
+          "caption": "Simuliert einen Grid-Reward-Status und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten Automationen (werden also wirklich ausgeführt!) und der Energiezählung. So lässt sich die eigene EMS-Verdrahtung testen, ohne auf einen echten, oft seltenen Einsatz zu warten. Wichtig: Die Simulation bleibt bestehen, bis entweder der nächste echte Tibber-Push kommt oder du unten auf „Zurück zum echten Status“ klickst – das fordert aktiv einen frischen Status direkt von Tibber an, statt nur auf den nächsten Push zu warten."
         },
         {
           "type": "RowLayout",

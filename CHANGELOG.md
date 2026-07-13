@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.16.0
+
+- **Generische EMS-Automationen** ersetzen die bisherigen Einzelfelder „EMS Leistungsmodus"/
+  „EMS Leistungssollwert": neue Liste **„Automationen"** im Panel „🎯 EMS-Steuerung je
+  Grid-Reward-Modus" – beliebig viele Zeilen je Modus, jede Zeile kann **bis zu zwei Zielvariablen
+  gleichzeitig** setzen (typisch: Betriebsmodus + Leistungssollwert in einer Zeile). Werte werden
+  automatisch in den Typ der Zielvariable umgewandelt; der Platzhalter **`WALLBOX`** steht für die
+  live nachgeführte, aktuell benötigte Wallbox-Leistung.
+- **Automatische einmalige Migration** einer bestehenden Konfiguration aus den alten Feldern
+  (bis 1.15.x) in vier äquivalente Automationszeilen – keine manuelle Nacharbeit nötig.
+- **Neues Panel „❓ Hilfe & Dokumentation"** direkt im Formular: kompakte Schritt-für-Schritt-Anleitung
+  (Einrichtung, Wallboxen, Grid-Reward-Modus, Automationen, Simulation) plus Link zum ausführlichen
+  README – ohne dafür GitHub öffnen zu müssen.
+- Intern: `ApplyModeActions`/`ApplyPowerSetpoint` (je ein Sonderfall) durch die generischen Methoden
+  `ApplyAutomations`/`ApplyAutomationTarget` ersetzt; Spam-Schutz jetzt pro Zielvariable statt global.
+
 ## 1.15.0
 
 - **Fester Leistungswert je Modus (optional).** Neue Felder `EmsPowerFixed0..3` (Standard `-1` = weiter
