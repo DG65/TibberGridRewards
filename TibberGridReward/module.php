@@ -49,6 +49,10 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyString('Automations', '[]');
         $this->RegisterAttributeString('LastAppliedValues', '{}');
         $this->RegisterAttributeBoolean('EmsAutomationsMigrated', false);
+        // Werte-Nachschau-Helfer: zeigt die Profil-Werte einer Variable an, da IP-Symcon-Listen keine
+        // pro-Zeile abhängigen Dropdowns unterstützen (jede Zeile könnte eine andere Zielvariable mit
+        // anderem Profil haben).
+        $this->RegisterPropertyInteger('LookupVariable', 0);
 
         // Legacy (bis 1.15.x) – nicht mehr im Formular, nur für die einmalige Migration nach
         // "Automations" beim ersten Start dieser Version noch registriert. Können in einer
@@ -180,7 +184,68 @@ class TibberGridReward extends IPSModule
         }
         unset($element);
 
+        // Werte-Nachschau: Profil-Werte der gewählten Variable als Text anzeigen (IP-Symcon-Listen
+        // können keine pro-Zeile abhängigen Dropdowns, da jede Zeile eine andere Zielvariable mit
+        // anderem Profil haben kann).
+        $lookupText = $this->GetLookupValuesText();
+        $this->ReplaceFormElements($form['elements'], ['LookupResult'], function (array &$el) use ($lookupText) {
+            $el['caption'] = $lookupText;
+        });
+
         return json_encode($form);
+    }
+
+    /**
+     * Button-Aktion: aktualisiert nur die Anzeige des Werte-Nachschau-Helfers (die Variable selbst ist
+     * bereits als Property gespeichert, sobald sie ausgewählt und übernommen wurde).
+     */
+    public function ShowLookupValues(): void
+    {
+        $this->ReloadForm();
+    }
+
+    /**
+     * Liefert die Profil-Werte der unter "Werte nachschlagen" gewählten Variable als lesbaren Text
+     * (z. B. "0 = Gestoppt · 1 = Automatik · ..."), damit man sie in die Automationszeilen abtippen
+     * kann, ohne die Werte an anderer Stelle nachsehen zu müssen.
+     */
+    private function GetLookupValuesText(): string
+    {
+        $targetID = $this->ReadPropertyInteger('LookupVariable');
+        if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
+            return $this->Translate('Select a variable above, apply, then click "Show values".');
+        }
+        $info = IPS_GetVariable($targetID);
+        $profileName = $info['VariableCustomProfile'] !== '' ? $info['VariableCustomProfile'] : $info['VariableProfile'];
+        if ($profileName === '' || !IPS_VariableProfileExists($profileName)) {
+            return $this->Translate('This variable has no profile with fixed values - enter a number/text directly.');
+        }
+        $profile = IPS_GetVariableProfile($profileName);
+        if (empty($profile['Associations'])) {
+            return $this->Translate('This variable\'s profile has no fixed values - enter a number/text directly.');
+        }
+        $parts = [];
+        foreach ($profile['Associations'] as $assoc) {
+            $parts[] = $assoc['Value'] . ' = ' . $assoc['Name'];
+        }
+        return implode('  ·  ', $parts);
+    }
+
+    /**
+     * Sucht Formularelemente per Name (auch verschachtelt in ExpansionPanel-"items") und wendet
+     * darauf $callback an.
+     */
+    private function ReplaceFormElements(array &$elements, array $names, callable $callback): void
+    {
+        foreach ($elements as &$el) {
+            if (isset($el['name']) && in_array($el['name'], $names, true)) {
+                $callback($el);
+            }
+            if (isset($el['items']) && is_array($el['items'])) {
+                $this->ReplaceFormElements($el['items'], $names, $callback);
+            }
+        }
+        unset($el);
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)

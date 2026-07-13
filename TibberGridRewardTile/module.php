@@ -51,6 +51,10 @@ class TibberGridRewardTile extends IPSModule
         $this->RegisterPropertyString('FontFamily', self::DEF_FONT);
         $this->RegisterPropertyFloat('FontScale', self::DEF_SCALE);
 
+        // Simulations-Buttons auf der Kachel: standardmäßig AUS, da sie echte RequestAction-Befehle
+        // an die konfigurierten EMS-Automationen der Quelle auslösen (siehe Datenmodul).
+        $this->RegisterPropertyBoolean('ShowSimControls', false);
+
         // Als HTML-Kachel-Visualisierung anmelden
         $this->SetVisualizationType(1);
     }
@@ -138,6 +142,34 @@ class TibberGridRewardTile extends IPSModule
         return $module;
     }
 
+    /**
+     * Wird durch requestAction() aus der Kachel (module.html) ausgelöst, wenn „Simulations-Buttons
+     * auf der Kachel" aktiviert sind. Reicht den Befehl an die verbundene Datenquelle weiter – dort
+     * läuft exakt derselbe Code wie bei einem echten Tibber-Ereignis, inkl. aller konfigurierten
+     * EMS-Automationen.
+     */
+    public function RequestAction($Ident, $Value)
+    {
+        if (!$this->ReadPropertyBoolean('ShowSimControls')) {
+            return;
+        }
+        $src = $this->ResolveSource();
+        if ($src <= 0 || !IPS_InstanceExists($src)) {
+            $this->SendDebug(__FUNCTION__, 'Keine Datenquelle verbunden', 0);
+            return;
+        }
+        switch ($Ident) {
+            case 'Simulate':
+                if (in_array($Value, ['available', 'excess', 'shortage'], true)) {
+                    @TIBBERGR_Simulate($src, (string) $Value);
+                }
+                break;
+            case 'ResetSimulation':
+                @TIBBERGR_ResetSimulation($src);
+                break;
+        }
+    }
+
     // ---------------------------------------------------------------------
     // Datenaufbereitung
     // ---------------------------------------------------------------------
@@ -174,6 +206,7 @@ class TibberGridRewardTile extends IPSModule
                 'band'       => $this->BuildBand(0, $bandColors),
                 'emptyLabel' => $this->Translate('No flex devices'),
                 'devices'    => [],
+                'sim'        => false, // ohne Quelle keine Simulations-Buttons
             ]));
         }
 
@@ -241,6 +274,11 @@ class TibberGridRewardTile extends IPSModule
             'energyLabel'  => $this->Translate('Grid reward energy'),
             'emptyLabel'   => $this->Translate('No flex devices'),
             'devices'      => $devices,
+            'sim'          => $this->ReadPropertyBoolean('ShowSimControls'),
+            'simAvailable' => $this->Translate('Available'),
+            'simExcess'    => $this->Translate('Simulate charging (excess)'),
+            'simShortage'  => $this->Translate('Simulate curtailment (shortage)'),
+            'simReset'     => $this->Translate('Back to real status'),
         ]));
     }
 

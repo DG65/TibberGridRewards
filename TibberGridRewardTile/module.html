@@ -227,6 +227,31 @@
             color: var(--textmuted);
             font-style: italic;
         }
+
+        .tgr-sim {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--box);
+        }
+
+        .tgr-sim button {
+            font-family: var(--font);
+            font-size: calc(11px * var(--scale));
+            font-weight: 600;
+            color: var(--text);
+            background: var(--box);
+            border: none;
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+
+        .tgr-sim button:active {
+            opacity: .7;
+        }
     </style>
 </head>
 
@@ -259,6 +284,12 @@
             <div class="tgr-energy" id="energy"></div>
         </div>
         <div class="tgr-devices" id="devices"></div>
+        <div class="tgr-sim" id="sim-controls" style="display:none">
+            <button id="sim-available" onclick="requestAction('Simulate', 'available');"></button>
+            <button id="sim-excess" onclick="requestAction('Simulate', 'excess');"></button>
+            <button id="sim-shortage" onclick="requestAction('Simulate', 'shortage');"></button>
+            <button id="sim-reset" onclick="requestAction('ResetSimulation', 0);"></button>
+        </div>
     </div>
 
     <script>
@@ -333,6 +364,17 @@
                 enWrap.style.display = '';
             } else {
                 enWrap.style.display = 'none';
+            }
+
+            var simRow = document.getElementById('sim-controls');
+            if (data.sim) {
+                document.getElementById('sim-available').textContent = data.simAvailable || 'Available';
+                document.getElementById('sim-excess').textContent = data.simExcess || 'Simulate excess';
+                document.getElementById('sim-shortage').textContent = data.simShortage || 'Simulate shortage';
+                document.getElementById('sim-reset').textContent = data.simReset || 'Reset';
+                simRow.style.display = '';
+            } else {
+                simRow.style.display = 'none';
             }
 
             var dev = document.getElementById('devices');

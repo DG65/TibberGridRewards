@@ -17,7 +17,10 @@
       "No event": "Kein Einsatz",
       "Car charging · from grid": "Auto lädt · aus Netz",
       "Charge from grid": "Laden aus Netz",
-      "Curtailment": "Drosselung"
+      "Curtailment": "Drosselung",
+      "Simulate charging (excess)": "Laden simulieren",
+      "Simulate curtailment (shortage)": "Drosselung simulieren",
+      "Back to real status": "↩ Echter Status"
     }
   }
 }

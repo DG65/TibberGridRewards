@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.17.0
+
+- **Werte-Nachschau-Helfer** im Datenmodul (Panel „🎯 EMS-Steuerung"): Variable wählen, übernehmen,
+  „Werte anzeigen" klicken – zeigt alle Profil-Werte der Variable als Text an. Ersatz dafür, dass
+  IP-Symcon-Listen keinen pro-Zeile-abhängigen Dropdown unterstützen (jede Automationszeile kann eine
+  andere Zielvariable mit anderem Profil haben).
+- **Simulations-Buttons auf der Kachel** (`TibberGridRewardTile`, neues Panel „🧪 Simulations-Buttons
+  auf der Kachel", standardmäßig **deaktiviert**): Verfügbar/Laden/Drosselung simulieren und „↩ Echter
+  Status" direkt im Webfront, ohne die Instanzkonfiguration zu öffnen. Nutzt die neue
+  `RequestAction()`-Weiterleitung der Kachel an die verbundene Datenquelle (`requestAction()` im
+  HTML-SDK). Bewusst standardmäßig aus, da echte EMS-Automationen ausgelöst werden.
+
 ## 1.16.0
 
 - **Generische EMS-Automationen** ersetzen die bisherigen Einzelfelder „EMS Leistungsmodus"/

@@ -144,6 +144,18 @@ Drosselungs-Farbe sind eigene Farbwähler.
 > Alle Kachel-Einstellungen liegen ausschließlich beim Modul `TibberGridRewardTile`. Das Datenmodul
 > `TibberGridReward` enthält keine Darstellungs-Optionen mehr.
 
+### Simulations-Buttons auf der Kachel (optional, standardmäßig aus)
+
+Im Kachel-Formular lässt sich unter **🧪 Simulations-Buttons auf der Kachel** eine Checkbox aktivieren,
+die direkt auf der Kachel im Webfront vier Buttons einblendet: **Verfügbar**, **Laden simulieren**,
+**Drosselung simulieren** und **↩ Echter Status**. Sie rufen dieselben `Simulate()`/`ResetSimulation()`-
+Funktionen der verbundenen Datenquelle auf wie die Buttons im Konfigurationsformular – praktisch, um
+die EMS-Verdrahtung zu testen, ohne die Instanzkonfiguration zu öffnen.
+
+> **Achtung:** Diese Buttons lösen echte `RequestAction`-Befehle an die in der Datenquelle
+> konfigurierten EMS-Automationen aus. Standardmäßig **deaktiviert**, da jeder mit Zugriff auf das
+> Webfront (z. B. Familie, Gäste über eine geteilte Ansicht) sie antippen könnte.
+
 ## Wallbox-Leistung & EMS-Übergabe
 
 Im Datenmodul lassen sich unter **🔌 Wallboxen** die Wirkleistungs-Datenpunkte beliebig vieler
@@ -211,6 +223,13 @@ Beim Wechsel in den passenden Modus setzt das Modul beide Zielvariablen automati
 
 Es sind **beliebig viele Zeilen pro Modus** erlaubt – braucht dein EMS mehr als zwei Datenpunkte für
 einen Übergang, legst du einfach eine weitere Zeile mit demselben Modus an.
+
+**Werte nachschlagen:** Da jede Zeile eine andere Zielvariable mit anderem Profil haben kann,
+unterstützt IP-Symcon hier keinen Dropdown, der sich abhängig von der in derselben Zeile gewählten
+Zielvariable anpasst (Listenspalten sind für alle Zeilen einheitlich). Als Ersatz gibt es darunter
+**„🔍 Werte nachschlagen"**: Variable wählen, übernehmen, **„Werte anzeigen"** klicken – darunter
+erscheinen alle möglichen Werte der Zielvariable als Text (z. B. „0 = Gestoppt · 1 = Automatik · …")
+zum Ablesen und Abtippen in Wert 1/2.
 
 Das deckt eine einfache, statische Zuordnung ab (z. B. „Modus 2 → Betriebsmodus = Stromeinkauf +
 Leistung = `WALLBOX`"). Für komplexere, dynamische Logik (z. B. „nur laden, wenn die Batterie beim

@@ -32,6 +32,21 @@
     },
     {
       "type": "ExpansionPanel",
+      "caption": "🧪 Simulations-Buttons auf der Kachel",
+      "items": [
+        {
+          "type": "Label",
+          "caption": "Blendet auf der Kachel selbst Buttons ein, mit denen sich Verfügbar/Laden/Drosselung simulieren und die Simulation wieder beenden lässt – ohne die Instanzkonfiguration zu öffnen. ACHTUNG: Löst dabei wirklich die in der Datenquelle konfigurierten EMS-Automationen aus (echte RequestAction-Befehle)! Standardmäßig deaktiviert, da jeder mit Zugriff aufs Webfront die Buttons antippen könnte."
+        },
+        {
+          "type": "CheckBox",
+          "name": "ShowSimControls",
+          "caption": "Simulations-Buttons auf der Kachel anzeigen"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
       "caption": "🔤 Schrift",
       "items": [
         {

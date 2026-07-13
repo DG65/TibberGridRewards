@@ -191,6 +191,25 @@
               "edit": { "type": "ValidationTextBox" }
             }
           ]
+        },
+        {
+          "type": "Label",
+          "caption": "🔍 Werte nachschlagen: IP-Symcon-Listen können pro Zeile keinen abhängigen Dropdown anzeigen (jede Zeile kann eine andere Zielvariable mit anderem Profil haben). Wähle hier stattdessen eine Variable, übernimm, und klicke „Werte anzeigen“ – darunter erscheinen alle möglichen Werte zum Ablesen/Abtippen in Wert 1/2."
+        },
+        {
+          "type": "SelectVariable",
+          "name": "LookupVariable",
+          "caption": "Werte nachschlagen für"
+        },
+        {
+          "type": "Button",
+          "caption": "Werte anzeigen",
+          "onClick": "TIBBERGR_ShowLookupValues($id);"
+        },
+        {
+          "type": "Label",
+          "name": "LookupResult",
+          "caption": "Wähle oben eine Variable, übernimm, dann „Werte anzeigen“ klicken."
         }
       ]
     },
