@@ -1,36 +1,65 @@
 {
   "elements": [
     {
-      "type": "Label",
-      "caption": "Tibber Grid Rewards – liefert den Grid-Reward-Status (u. a. das 'Delivering'-Signal) als Variablen. Voraussetzung: Teilnahme an Grid Rewards mit einem unterstützten Gerät (z. B. Tesla). Ergänzt das Modul 'Tibber V.2' (offizielle API)."
-    },
-    {
       "type": "ExpansionPanel",
-      "caption": "❓ Hilfe & Dokumentation",
+      "caption": "📖 Dokumentation & Hilfe",
+      "expanded": false,
       "items": [
         {
           "type": "Label",
-          "caption": "1) EINRICHTEN: E-Mail/Passwort deiner Tibber-App eintragen, Aktiv anhaken, Übernehmen. Dann unten „Zuhause-Liste neu laden“ klicken, dein Zuhause auswählen, erneut Übernehmen. Die Verbindung steht, sobald der Status oben „Aktiv“ zeigt."
+          "caption": "── Funktionsweise ──"
         },
         {
           "type": "Label",
-          "caption": "2) WALLBOXEN (optional, aber empfohlen): Im Panel „🔌 Wallboxen“ die Wirkleistungs-Datenpunkte deiner Wallbox(en) eintragen. Daraus berechnet das Modul, ob und wie viel gerade geladen wird – Grundlage für den Grid-Reward-Modus und die EMS-Automationen."
+          "caption": "Tibber Grid Rewards – liefert den Grid-Reward-Status (u. a. das 'Delivering'-Signal) als Variablen. Voraussetzung: Teilnahme an Grid Rewards mit einem unterstützten Gerät (z. B. Tesla). Ergänzt das Modul 'Tibber V.2' (offizielle API)."
         },
         {
           "type": "Label",
-          "caption": "3) GRID-REWARD-MODUS verstehen (Variable „Grid-Reward-Modus“, 0–3):\n0 Normal – kein Einsatz, Auto lädt nicht.\n1 Auto lädt (kein Reward) – Smart-Charge/Zwangsbeladen/Freigabe: Strom soll aus dem Netz kommen, nicht aus der Batterie.\n2 Grid Reward: Laden (Tibber-Status „excess“) – Netzüberschuss, belohnt: Auto UND Batterie aus dem Netz laden.\n3 Grid Reward: Drosselung (Tibber-Status „shortage“) – Netzknappheit: Auto aus, Haus möglichst aus Batterie/PV versorgen, Netzbezug minimieren."
+          "caption": "── Einrichten ──"
         },
         {
           "type": "Label",
-          "caption": "4) EMS-AUTOMATIONEN (Panel „🎯 EMS-Steuerung“): Für jeden Modus legst du beliebig viele Zeilen an, die beim Wechsel in diesen Modus automatisch ausgeführt werden. Jede Zeile kann bis zu ZWEI Zielvariablen gleichzeitig setzen – der typische Fall für einen Grid-Reward-Einsatz (z. B. EMS-Betriebsmodus UND Leistungssollwert in einem Rutsch). Der eingegebene Wert wird automatisch in den Typ der Zielvariable umgewandelt (Zahl, true/false oder Text). Der Platzhalter „WALLBOX“ (egal ob groß/klein geschrieben) wird durch die aktuell benötigte Wallbox-Leistung ersetzt und laufend live nachgeführt – ideal für einen Leistungssollwert. Brauchst du mehr als zwei Zielvariablen für einen Modus, legst du einfach eine weitere Zeile mit demselben Modus an."
+          "caption": "E-Mail/Passwort deiner Tibber-App eintragen, Aktiv anhaken, Übernehmen. Dann unten „Zuhause-Liste neu laden“ klicken, dein Zuhause auswählen, erneut Übernehmen. Die Verbindung steht, sobald der Status oben „Aktiv“ zeigt."
         },
         {
           "type": "Label",
-          "caption": "5) TESTEN OHNE ECHTEN EINSATZ (Panel „🧪 Simulation“): Über die Buttons lässt sich jeder der drei Zustände (Verfügbar/Laden/Drosselung) auslösen und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten Automationen. „↩ Zurück zum echten Status“ beendet die Simulation und holt aktiv den aktuellen echten Stand von Tibber."
+          "caption": "── Wallboxen ──"
         },
         {
           "type": "Label",
-          "caption": "Ausführliche Dokumentation, Beispiele und Hintergründe: https://github.com/DG65/TibberGridRewards"
+          "caption": "Optional, aber empfohlen: Im Panel „🔌 Wallboxen“ die Wirkleistungs-Datenpunkte deiner Wallbox(en) eintragen. Daraus berechnet das Modul, ob und wie viel gerade geladen wird – Grundlage für den Grid-Reward-Modus und die Automationen."
+        },
+        {
+          "type": "Label",
+          "caption": "── Grid-Reward-Modus ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Variable „Grid-Reward-Modus“ (0–3):\n0 Normal – kein Einsatz, Auto lädt nicht.\n1 Auto lädt (kein Reward) – Smart-Charge/Zwangsbeladen/Freigabe: Strom soll aus dem Netz kommen, nicht aus der Batterie.\n2 Grid Reward: Laden (Tibber-Status „excess“) – Netzüberschuss, belohnt: Auto UND Batterie aus dem Netz laden.\n3 Grid Reward: Drosselung (Tibber-Status „shortage“) – Netzknappheit: Auto aus, Haus möglichst aus Batterie/PV versorgen, Netzbezug minimieren."
+        },
+        {
+          "type": "Label",
+          "caption": "── Automationen (Wenn → Dann) ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Panel „🎯 Automationen“: Jede Regel prüft eine Bedingung über einen Datenpunkt dieser Instanz (z. B. Grid-Reward-Modus = 2) und setzt beim Eintreten bis zu ZWEI Zielvariablen gleichzeitig – der typische Fall für einen Grid-Reward-Einsatz (z. B. EMS-Betriebsmodus UND Leistungssollwert in einem Rutsch). Flankengesteuert: eine Regel feuert beim Eintreten der Bedingung, nicht bei jeder Datenmeldung erneut. Der eingegebene Wert wird automatisch in den Typ der Zielvariable umgewandelt (Zahl, true/false oder Text). Der Platzhalter „WALLBOX“ (egal ob groß/klein geschrieben) wird durch die aktuell benötigte Wallbox-Leistung ersetzt und laufend live nachgeführt, solange die Bedingung erfüllt bleibt – ideal für einen Leistungssollwert. Mehrere Bedingungen (UND-verknüpft) oder mehr als zwei Zielvariablen pro Regel? Dafür bietet die Kachel „TibberGridRewardTile“ einen komfortablen Regel-Editor mit beliebig vielen Bedingungen und Aktionen (siehe deren Panel „🤖 Automationen anzeigen“)."
+        },
+        {
+          "type": "Label",
+          "caption": "── Simulation ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Panel „🧪 Simulation“: Über die Buttons lässt sich jeder der drei Zustände (Verfügbar/Laden/Drosselung) auslösen und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten Automationen. „↩ Zurück zum echten Status“ beendet die Simulation und holt aktiv den aktuellen echten Stand von Tibber."
+        },
+        {
+          "type": "Label",
+          "caption": "── Weitere Hilfe ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Ausführliche Dokumentation, Beispiele und Hintergründe: github.com/DG65/TibberGridRewards."
         }
       ]
     },
@@ -126,16 +155,16 @@
     },
     {
       "type": "ExpansionPanel",
-      "caption": "🎯 EMS-Steuerung je Grid-Reward-Modus",
+      "caption": "🎯 Automationen (Wenn → Dann)",
       "items": [
         {
           "type": "Label",
-          "caption": "Beliebig viele Automationszeilen je Grid-Reward-Modus (0 Normal · 1 Auto lädt · 2 Grid Reward: Laden · 3 Drosselung). Jede aktive Zeile wird beim Wechsel in ihren Modus ausgeführt und kann bis zu zwei Zielvariablen gleichzeitig setzen. Werte werden automatisch in den Typ der Zielvariable umgewandelt (Zahl, true/false oder Text). Platzhalter „WALLBOX“ = aktuell benötigte Wallbox-Leistung, wird laufend live nachgeführt. Mehr als zwei Datenpunkte für einen Modus? Einfach eine weitere Zeile mit demselben Modus anlegen."
+          "caption": "Regeln über die Datenpunkte dieser Instanz (z. B. Grid-Reward-Modus, Wallbox lädt). Sobald die Bedingung erfüllt wird, setzt die Regel bis zu zwei Zielvariablen gleichzeitig. Flankengesteuert – eine Regel feuert beim Eintreten der Bedingung, nicht bei jeder Datenmeldung erneut. Werte werden automatisch in den Typ der Zielvariable umgewandelt (Zahl, true/false oder Text). Platzhalter „WALLBOX“ = aktuell benötigte Wallbox-Leistung, wird laufend live nachgeführt, solange die Bedingung erfüllt bleibt. Die Kachel „TibberGridRewardTile“ kann diese Regeln anzeigen, verwalten und ein-/ausschalten – und bietet dort einen Editor mit beliebig vielen Bedingungen (UND) und Aktionen je Regel."
         },
         {
           "type": "List",
-          "name": "Automations",
-          "caption": "Automationen",
+          "name": "DataActions",
+          "caption": "Regeln",
           "rowCount": 8,
           "add": true,
           "delete": true,
@@ -148,19 +177,41 @@
               "edit": { "type": "CheckBox" }
             },
             {
-              "caption": "Grid-Reward-Modus",
-              "name": "Mode",
-              "width": "190px",
-              "add": 0,
+              "caption": "Wenn Datenpunkt",
+              "name": "Source",
+              "width": "170px",
+              "add": "",
+              "edit": {
+                "type": "Select",
+                "options": []
+              }
+            },
+            {
+              "caption": "Bedingung",
+              "name": "Op",
+              "width": "140px",
+              "add": "true",
               "edit": {
                 "type": "Select",
                 "options": [
-                  { "caption": "0 – Normal", "value": 0 },
-                  { "caption": "1 – Auto lädt (kein Reward)", "value": 1 },
-                  { "caption": "2 – Grid Reward: Laden", "value": 2 },
-                  { "caption": "3 – Grid Reward: Drosselung", "value": 3 }
+                  { "caption": "wird EIN (true)", "value": "true" },
+                  { "caption": "wird AUS (false)", "value": "false" },
+                  { "caption": "= (gleich)", "value": "eq" },
+                  { "caption": "≠ (ungleich)", "value": "ne" },
+                  { "caption": "> (größer)", "value": "gt" },
+                  { "caption": "≥ (größer gleich)", "value": "ge" },
+                  { "caption": "< (kleiner)", "value": "lt" },
+                  { "caption": "≤ (kleiner gleich)", "value": "le" },
+                  { "caption": "ändert sich", "value": "change" }
                 ]
               }
+            },
+            {
+              "caption": "Vergleichswert",
+              "name": "Compare",
+              "width": "100px",
+              "add": "",
+              "edit": { "type": "ValidationTextBox" }
             },
             {
               "caption": "Zielvariable 1",
@@ -170,9 +221,24 @@
               "edit": { "type": "SelectVariable" }
             },
             {
+              "caption": "Aktion 1",
+              "name": "Action1",
+              "width": "120px",
+              "add": "on",
+              "edit": {
+                "type": "Select",
+                "options": [
+                  { "caption": "Einschalten", "value": "on" },
+                  { "caption": "Ausschalten", "value": "off" },
+                  { "caption": "Umschalten", "value": "toggle" },
+                  { "caption": "Wert setzen", "value": "value" }
+                ]
+              }
+            },
+            {
               "caption": "Wert 1",
               "name": "Value1",
-              "width": "120px",
+              "width": "100px",
               "add": "",
               "edit": { "type": "ValidationTextBox" }
             },
@@ -184,9 +250,24 @@
               "edit": { "type": "SelectVariable" }
             },
             {
+              "caption": "Aktion 2",
+              "name": "Action2",
+              "width": "120px",
+              "add": "on",
+              "edit": {
+                "type": "Select",
+                "options": [
+                  { "caption": "Einschalten", "value": "on" },
+                  { "caption": "Ausschalten", "value": "off" },
+                  { "caption": "Umschalten", "value": "toggle" },
+                  { "caption": "Wert setzen", "value": "value" }
+                ]
+              }
+            },
+            {
               "caption": "Wert 2 (optional)",
               "name": "Value2",
-              "width": "120px",
+              "width": "100px",
               "add": "",
               "edit": { "type": "ValidationTextBox" }
             }
@@ -194,7 +275,7 @@
         },
         {
           "type": "Label",
-          "caption": "🔍 Werte nachschlagen: IP-Symcon-Listen können pro Zeile keinen abhängigen Dropdown anzeigen (jede Zeile kann eine andere Zielvariable mit anderem Profil haben). Wähle hier stattdessen eine Variable, übernimm, und klicke „Werte anzeigen“ – darunter erscheinen alle möglichen Werte zum Ablesen/Abtippen in Wert 1/2."
+          "caption": "🔍 Werte nachschlagen: IP-Symcon-Listen können pro Zeile keinen abhängigen Dropdown anzeigen (jede Zeile kann eine andere Zielvariable mit anderem Profil haben). Wähle hier stattdessen eine Variable, übernimm, und klicke „Werte anzeigen“ – darunter erscheinen alle möglichen Werte zum Ablesen/Abtippen in Vergleichswert/Wert 1/2."
         },
         {
           "type": "SelectVariable",

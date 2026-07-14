@@ -1,5 +1,33 @@
 # Changelog
 
+## 2.0.0
+
+- **Bedingungs-Regelwerk „Wenn → Dann" ersetzt die alten Automations-Zeilen** (Vorbild/Portierung:
+  `StromGedachtWidget`). Jede Regel prüft beliebig viele **UND-verknüpfte Bedingungen** (`eq/ne/gt/ge/
+  lt/le/wird EIN/wird AUS/ändert sich`) über die eigenen Datenpunkte dieser Instanz und setzt beim
+  Eintreten **bis zu zwei Zielvariablen gleichzeitig** im Formular (Tibber-Erweiterung ggü. dem
+  Vorbild: dort nur eine Aktion je Regel). Flankengesteuert wie bisher – eine Regel feuert beim
+  Eintreten der Bedingung, nicht bei jeder Datenmeldung erneut.
+- **Automatische einmalige Migration** der bestehenden „Automations"-Zeilen (1.16.0/1.17.0) in das
+  neue Format – keine manuelle Nacharbeit nötig, bereits eingerichtete EMS-Steuerungen bleiben
+  unverändert wirksam.
+- **Neuer, interaktiver Regel-Editor direkt in der Kachel** (`TibberGridRewardTile`, Panel
+  „🤖 Automationen anzeigen", standardmäßig **deaktiviert**, da darüber reale EMS-Aktoren
+  konfigurierbar sind): beliebig viele UND-Bedingungen und – als Erweiterung ggü. dem Vorbild –
+  beliebig viele Aktionen (bis 6) je Regel, jede mit echten, **voneinander unabhängigen** Dropdowns
+  für Vergleichs- bzw. Zielwerte (per `requestAction()`/`RequestAction()`-Bridge dynamisch nachgeladen).
+  Grund für den eigenen Kachel-Editor: klassische IP-Symcon-Formularlisten unterstützen keine
+  pro-Zeile abhängigen Dropdowns, da jede Zeile eine andere Zielvariable mit anderem Profil haben
+  kann.
+- Regeln lassen sich zusätzlich direkt in der Kachel ein-/ausschalten und löschen, ohne die
+  Instanzkonfiguration zu öffnen.
+- Der Platzhalter `WALLBOX` als Aktionswert wird weiterhin laufend nachgeführt (nicht nur beim
+  Auslösen der Regel), solange deren Bedingung erfüllt bleibt – wie bisher mit Änderungs-Schutz pro
+  Zielvariable, damit der Aktor nicht gespammt wird.
+- Intern: `ApplyAutomations`/`ApplyAutomationTarget` durch `evaluateDataActions`/
+  `applyActionToVariable` ersetzt; `SetDataAction`/`DeleteDataAction`/`SetDataActionActive`/
+  `GetDataActions`/`GetDataActionEditor`/`GetTargetValueOptions` neu für die Kachel-Anbindung.
+
 ## 1.17.0
 
 - **Werte-Nachschau-Helfer** im Datenmodul (Panel „🎯 EMS-Steuerung"): Variable wählen, übernehmen,

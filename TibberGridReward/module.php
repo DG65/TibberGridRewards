@@ -44,19 +44,25 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyFloat('ChargingThreshold', 100.0);
         $this->RegisterPropertyInteger('MaxAge', 120);
 
-        // Automationen je Grid-Reward-Modus (0-3): beliebige Zielvariablen, je Zeile bis zu 2
-        // gleichzeitig (typischer Fall: EMS-Betriebsmodus + Leistungssollwert in einem Rutsch).
+        // Generisches Bedingungs-Regelwerk "Wenn -> Dann" (Vorbild/Portierung: StromGedachtWidget).
+        // Jede Regel: beliebig viele UND-Bedingungen (Conditions) über die eigenen Variablen dieser
+        // Instanz + beliebig viele Aktionen (Actions), die beim Erfüllen ausgeführt werden. Tibber-
+        // Erweiterung ggü. StromGedacht: mehrere Actions pro Regel (dort nur eine) – ein Grid-Reward-
+        // Übergang braucht typischerweise 2 Datenpunkte gleichzeitig (EMS-Modus + Leistung).
+        $this->RegisterPropertyString('DataActions', '[]');
+        $this->RegisterAttributeString('RuleState', '{}');
+        $this->RegisterAttributeBoolean('DataActionsMigrated', false);
+        // Werte-Nachschau-Helfer: zeigt die Profil-Werte einer Variable an, da IP-Symcon-Listen keine
+        // pro-Zeile abhängigen Dropdowns unterstützen (jede Zeile könnte eine andere Zielvariable mit
+        // anderem Profil haben). Die Kachel bietet dafür einen echten, interaktiven Regel-Editor.
+        $this->RegisterPropertyInteger('LookupVariable', 0);
+
+        // Legacy (bis 1.17.x) – nicht mehr im Formular, nur für die einmalige Migration nach
+        // "DataActions" beim ersten Start dieser Version noch registriert.
         $this->RegisterPropertyString('Automations', '[]');
         $this->RegisterAttributeString('LastAppliedValues', '{}');
         $this->RegisterAttributeBoolean('EmsAutomationsMigrated', false);
-        // Werte-Nachschau-Helfer: zeigt die Profil-Werte einer Variable an, da IP-Symcon-Listen keine
-        // pro-Zeile abhängigen Dropdowns unterstützen (jede Zeile könnte eine andere Zielvariable mit
-        // anderem Profil haben).
-        $this->RegisterPropertyInteger('LookupVariable', 0);
-
-        // Legacy (bis 1.15.x) – nicht mehr im Formular, nur für die einmalige Migration nach
-        // "Automations" beim ersten Start dieser Version noch registriert. Können in einer
-        // späteren Version entfernt werden, sobald Bestandsinstallationen migriert sind.
+        // Legacy (bis 1.15.x).
         $this->RegisterPropertyInteger('EmsModeVariable', 0);
         $this->RegisterPropertyInteger('EmsModeValue0', 0);
         $this->RegisterPropertyInteger('EmsModeValue1', 0);
@@ -108,9 +114,13 @@ class TibberGridReward extends IPSModule
         // Standard-Darstellung erzwingen (räumt evtl. aus 1.1.0 verbliebenen HTML-SDK-Typ auf)
         $this->SetVisualizationType(0);
 
-        // Einmalige Migration der alten EMS-Felder (bis 1.15.x) nach "Automations". Löst bei Bedarf
-        // selbst ein erneutes ApplyChanges aus (siehe Methode) – in dem Fall hier abbrechen.
+        // Einmalige Migrationen (lösen bei Bedarf selbst ein erneutes ApplyChanges aus – dann hier
+        // abbrechen): zuerst die sehr alten EMS-Felder (bis 1.15.x) nach "Automations", danach das
+        // v1.16/1.17-Format nach dem neuen Bedingungs-Regelwerk "DataActions".
         if ($this->MigrateLegacyEmsConfig()) {
+            return;
+        }
+        if ($this->MigrateAutomationsToDataActions()) {
             return;
         }
 
@@ -155,7 +165,9 @@ class TibberGridReward extends IPSModule
         $this->RegisterWallboxMessages();
         $this->AccumulateEnergyCounters(); // Zähler-Basis setzen (kein Delta über die Downtime)
         $this->WriteAttributeFloat('LastEnergyTs', microtime(true));
-        $this->SumWallboxes();
+        // Baseline ohne Auslösen: verhindert Fehlauslösung einer Regel direkt nach dem Übernehmen,
+        // falls ihre Bedingung zufällig schon erfüllt ist (Vorbild StromGedachtWidget).
+        $this->SumWallboxes(false);
         $this->WriteAttributeFloat('LastPower', (float) $this->GetValueSafe('WallboxPowerTotal'));
         $this->UpdateKPI();
         $this->SetTimerInterval('EnergyTick', $this->ReadAttributeBoolean('EventActive') ? 30000 : 0);
@@ -186,13 +198,54 @@ class TibberGridReward extends IPSModule
 
         // Werte-Nachschau: Profil-Werte der gewählten Variable als Text anzeigen (IP-Symcon-Listen
         // können keine pro-Zeile abhängigen Dropdowns, da jede Zeile eine andere Zielvariable mit
-        // anderem Profil haben kann).
+        // anderem Profil haben kann). Die Kachel bietet dafür einen echten Dropdown im Regel-Editor.
         $lookupText = $this->GetLookupValuesText();
         $this->ReplaceFormElements($form['elements'], ['LookupResult'], function (array &$el) use ($lookupText) {
             $el['caption'] = $lookupText;
         });
 
+        // "Wenn Datenpunkt"-Spalte der Automationen-Liste mit den verfügbaren Quellen befüllen
+        // (verschachtelt in einem ExpansionPanel -> rekursiv patchen).
+        $sourceOptions = $this->getAutomationSourceOptions();
+        $patch = function (array &$elements) use (&$patch, $sourceOptions) {
+            foreach ($elements as &$element) {
+                if (!is_array($element)) {
+                    continue;
+                }
+                if (($element['name'] ?? '') === 'DataActions' && isset($element['columns']) && is_array($element['columns'])) {
+                    foreach ($element['columns'] as &$col) {
+                        if (($col['name'] ?? '') === 'Source') {
+                            $col['edit']['options'] = $sourceOptions;
+                        }
+                    }
+                    unset($col);
+                }
+                if (isset($element['items']) && is_array($element['items'])) {
+                    $patch($element['items']);
+                }
+            }
+            unset($element);
+        };
+        $patch($form['elements']);
+
         return json_encode($form);
+    }
+
+    /**
+     * Verfügbare "Wenn"-Datenpunkte für das Bedingungs-Regelwerk: eine feste, kuratierte Auswahl der
+     * eigenen Variablen dieser Instanz (Ident als "value", damit Regeln unabhängig von der jeweiligen
+     * Objekt-ID bleiben – wichtig, falls die Instanz einmal neu angelegt wird).
+     */
+    private function getAutomationSourceOptions(): array
+    {
+        return [
+            ['caption' => 'Grid-Reward-Modus', 'value' => 'GridRewardMode'],
+            ['caption' => 'Grid Reward aktiv', 'value' => 'Delivering'],
+            ['caption' => 'Status-Detail', 'value' => 'StateReason'],
+            ['caption' => 'Wallbox lädt', 'value' => 'WallboxCharging'],
+            ['caption' => 'Wallbox-Daten gültig', 'value' => 'DataValid'],
+            ['caption' => 'Wallbox-Leistung (gesamt)', 'value' => 'WallboxPowerTotal'],
+        ];
     }
 
     /**
@@ -205,7 +258,7 @@ class TibberGridReward extends IPSModule
     }
 
     /**
-     * Liefert die Profil-Werte der unter "Werte nachschlagen" gewählten Variable als lesbaren Text
+     * Liefert die möglichen Werte der unter "Werte nachschlagen" gewählten Variable als lesbaren Text
      * (z. B. "0 = Gestoppt · 1 = Automatik · ..."), damit man sie in die Automationszeilen abtippen
      * kann, ohne die Werte an anderer Stelle nachsehen zu müssen.
      */
@@ -215,20 +268,62 @@ class TibberGridReward extends IPSModule
         if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
             return $this->Translate('Select a variable above, apply, then click "Show values".');
         }
-        $info = IPS_GetVariable($targetID);
-        $profileName = $info['VariableCustomProfile'] !== '' ? $info['VariableCustomProfile'] : $info['VariableProfile'];
-        if ($profileName === '' || !IPS_VariableProfileExists($profileName)) {
-            return $this->Translate('This variable has no profile with fixed values - enter a number/text directly.');
-        }
-        $profile = IPS_GetVariableProfile($profileName);
-        if (empty($profile['Associations'])) {
-            return $this->Translate('This variable\'s profile has no fixed values - enter a number/text directly.');
+        $options = json_decode($this->GetTargetValueOptions($targetID), true);
+        if (!is_array($options) || count($options) === 0) {
+            return $this->Translate('This variable has no fixed values - enter a number/text directly.');
         }
         $parts = [];
-        foreach ($profile['Associations'] as $assoc) {
-            $parts[] = $assoc['Value'] . ' = ' . $assoc['Name'];
+        foreach ($options as $o) {
+            $parts[] = $o['v'] . ' = ' . $o['c'];
         }
         return implode('  ·  ', $parts);
+    }
+
+    /**
+     * Mögliche Werte einer Variable als JSON [{v,c}] – zuerst über die IPS-9.0-Presentation
+     * (Enumeration/Switch), dann über ein Legacy-Variablenprofil, zuletzt Boolean-Fallback (Ein/Aus).
+     * Leeres Array = freie Eingabe. Wird sowohl für den Werte-Nachschau-Helfer im Formular als auch
+     * für die Dropdowns im Regel-Editor der Kachel genutzt (dort per RequestAction abgefragt).
+     */
+    public function GetTargetValueOptions(int $VariableID): string
+    {
+        if ($VariableID <= 0 || !IPS_VariableExists($VariableID)) {
+            return '[]';
+        }
+        $out = [];
+        $var = IPS_GetVariable($VariableID);
+
+        $pres = @IPS_GetVariablePresentation($VariableID);
+        if (is_array($pres)) {
+            $p = $pres['PRESENTATION'] ?? '';
+            if ($p === VARIABLE_PRESENTATION_ENUMERATION) {
+                $opts = json_decode((string) ($pres['OPTIONS'] ?? '[]'), true);
+                if (is_array($opts)) {
+                    foreach ($opts as $o) {
+                        if (is_array($o) && isset($o['Value'])) {
+                            $out[] = ['v' => $o['Value'], 'c' => (string) ($o['Caption'] ?? $o['Value'])];
+                        }
+                    }
+                }
+            } elseif ($p === VARIABLE_PRESENTATION_SWITCH) {
+                $out[] = ['v' => 1, 'c' => (string) ($pres['CAPTION_ON'] ?? 'Ein')];
+                $out[] = ['v' => 0, 'c' => (string) ($pres['CAPTION_OFF'] ?? 'Aus')];
+            }
+        }
+
+        if (count($out) === 0) {
+            $profile = ($var['VariableCustomProfile'] !== '') ? $var['VariableCustomProfile'] : $var['VariableProfile'];
+            if ($profile !== '' && IPS_VariableProfileExists($profile)) {
+                foreach (IPS_GetVariableProfile($profile)['Associations'] as $a) {
+                    $out[] = ['v' => $a['Value'], 'c' => (string) $a['Name']];
+                }
+            }
+        }
+
+        if (count($out) === 0 && (int) $var['VariableType'] === VARIABLETYPE_BOOLEAN) {
+            $out = [['v' => 1, 'c' => 'Ein'], ['v' => 0, 'c' => 'Aus']];
+        }
+        return json_encode($out);
     }
 
     /**
@@ -757,7 +852,7 @@ class TibberGridReward extends IPSModule
         }));
     }
 
-    private function SumWallboxes(): void
+    private function SumWallboxes(bool $fire = true): void
     {
         $maxAge = $this->ReadPropertyInteger('MaxAge');
         $total = 0.0;
@@ -795,14 +890,16 @@ class TibberGridReward extends IPSModule
         // „Wallbox aus Netz" gilt, wenn das Auto lädt – normal (1) oder bei Grid-Reward-Laden (2).
         $request = ($mode === 1 || $mode === 2) ? $total : 0.0;
         $this->SetValueIfExists('GridRewardWallboxRequest', $request);
-        $this->ApplyAutomations($mode, $request);
+
+        try {
+            $this->evaluateDataActions($fire);
+        } catch (Throwable $e) {
+            $this->SendDebug(__FUNCTION__, 'Automation-Fehler: ' . $e->getMessage(), 0);
+        }
     }
 
     /**
      * Setzt den EMS-Modus und steuert die Energie-/Log-Flanken (Grid-Reward-Laden = excess = Modus 2).
-     * Die Automationen selbst werden nicht hier, sondern zentral in SumWallboxes() ausgeführt – so
-     * wird sowohl bei jedem Moduswechsel als auch bei jeder Wallbox-Änderung neu ausgewertet (nötig
-     * für Zeilen mit dem WALLBOX-Platzhalter, die live nachgeführt werden sollen).
      */
     private function UpdateMode(bool $charging): void
     {
@@ -819,88 +916,534 @@ class TibberGridReward extends IPSModule
         $this->SetValueIfExists('GridRewardMode', $newMode);
     }
 
+    // ---------------------------------------------------------------------
+    // Bedingungs-Regelwerk "Wenn -> Dann" (Portierung von StromGedachtWidget, um Actions[] je Regel
+    // erweitert – ein Grid-Reward-Übergang braucht typischerweise mehrere Datenpunkte gleichzeitig).
+    // ---------------------------------------------------------------------
+
     /**
-     * Führt alle aktiven Automationszeilen für den aktuellen Grid-Reward-Modus aus: pro Zeile bis zu
-     * zwei Ziel­variablen gleichzeitig (typisch: EMS-Betriebsmodus + Leistungssollwert in einem
-     * Rutsch). So kann jeder Nutzer frei festlegen, wie sein EMS/Wechselrichter reagiert, ohne ein
-     * eigenes Skript zu schreiben – auch mit mehr als zwei Datenpunkten (einfach weitere Zeilen für
-     * denselben Modus anlegen).
+     * Liest die Bedingungsliste einer Regel, egal ob im neuen Mehrfach-Format
+     * ({Conditions:[{Source,Op,Compare},...]}) oder im alten flachen Format
+     * (Source/Op/Compare direkt in der Regel) gespeichert. Alle Bedingungen
+     * werden mit UND verknüpft ausgewertet.
      */
-    private function ApplyAutomations(int $mode, float $wallboxRequest): void
+    private function normalizeRuleConditions(array $rule): array
     {
-        $rows = json_decode($this->ReadPropertyString('Automations'), true);
-        if (!is_array($rows)) {
-            return;
-        }
-        foreach ($rows as $row) {
-            if (empty($row['Active']) || (int) ($row['Mode'] ?? -1) !== $mode) {
-                continue;
+        if (isset($rule['Conditions']) && is_array($rule['Conditions'])) {
+            $out = [];
+            foreach ($rule['Conditions'] as $c) {
+                if (!is_array($c)) {
+                    continue;
+                }
+                $src = (string) ($c['Source'] ?? '');
+                if ($src === '') {
+                    continue;
+                }
+                $out[] = ['Source' => $src, 'Op' => (string) ($c['Op'] ?? 'true'), 'Compare' => (string) ($c['Compare'] ?? '')];
             }
-            $this->ApplyAutomationTarget((int) ($row['Target1'] ?? 0), (string) ($row['Value1'] ?? ''), $wallboxRequest);
-            $this->ApplyAutomationTarget((int) ($row['Target2'] ?? 0), (string) ($row['Value2'] ?? ''), $wallboxRequest);
+            return $out;
         }
+        $src = (string) ($rule['Source'] ?? '');
+        if ($src === '') {
+            return [];
+        }
+        return [['Source' => $src, 'Op' => (string) ($rule['Op'] ?? 'true'), 'Compare' => (string) ($rule['Compare'] ?? '')]];
     }
 
     /**
-     * Setzt eine einzelne Zielvariable einer Automationszeile. Der Platzhalter „WALLBOX" (beliebige
-     * Groß-/Kleinschreibung) wird durch die aktuell benötigte Wallbox-Leistung ersetzt – damit lässt
-     * sich jede beliebige Zielvariable live nachführen, nicht nur ein fest benanntes Leistungsfeld.
-     * Schreibt je Zielvariable nur bei tatsächlicher Änderung, um Aktor/Log nicht zu spammen.
+     * Liest die Aktionsliste einer Regel. Drei mögliche Formate, geprüft in dieser Reihenfolge:
+     *  1) {Actions:[{Target,Action,Value},...]} – reiches Format des Kachel-Editors, beliebig viele.
+     *  2) Target1/Action1/Value1/Target2/Action2/Value2 – flache Spalten der klassischen Formular-
+     *     Liste (Tibber-Erweiterung ggü. StromGedacht: 2 Datenpunkte je Zeile, da ein Grid-Reward-
+     *     Übergang typischerweise EMS-Betriebsmodus + Leistungssollwert gleichzeitig braucht).
+     *  3) Target/Action/Value – einzelnes Ziel (Fallback, z. B. sehr alte Fremd-Daten).
      */
-    private function ApplyAutomationTarget(int $targetID, string $raw, float $wallboxRequest): void
+    private function normalizeRuleActions(array $rule): array
     {
-        if ($targetID <= 0 || !IPS_VariableExists($targetID)) {
-            return;
-        }
-        $raw = trim($raw);
-        if ($raw === '') {
-            return;
-        }
-        $resolved = (strtoupper($raw) === 'WALLBOX') ? (string) $wallboxRequest : $raw;
-        $value = $this->ParseActionValue($targetID, $resolved);
-        if ($value === null) {
-            return;
-        }
-
-        $last = json_decode($this->ReadAttributeString('LastAppliedValues'), true);
-        if (!is_array($last)) {
-            $last = [];
-        }
-        $key = (string) $targetID;
-        $prev = $last[$key] ?? null;
-        $unchanged = is_float($value)
-            ? ($prev !== null && is_numeric($prev) && abs((float) $prev - $value) < 1.0)
-            : ($prev === $value);
-        if ($unchanged) {
-            return;
+        if (isset($rule['Actions']) && is_array($rule['Actions'])) {
+            $out = [];
+            foreach ($rule['Actions'] as $a) {
+                if (!is_array($a) || (int) ($a['Target'] ?? 0) <= 0) {
+                    continue;
+                }
+                $out[] = [
+                    'Target' => (int) $a['Target'],
+                    'Action' => (string) ($a['Action'] ?? 'on'),
+                    'Value'  => (string) ($a['Value'] ?? ''),
+                ];
+            }
+            return $out;
         }
 
-        @RequestAction($targetID, $value);
-        $last[$key] = $value;
-        $this->WriteAttributeString('LastAppliedValues', json_encode($last));
-        $this->SendDebug(__FUNCTION__, 'Variable ' . $targetID . ' = ' . var_export($value, true)
-            . (strtoupper(trim($raw)) === 'WALLBOX' ? ' (WALLBOX-Bedarf)' : ''), 0);
+        if (isset($rule['Target1']) || isset($rule['Target2'])) {
+            $out = [];
+            foreach ([1, 2] as $n) {
+                $t = (int) ($rule['Target' . $n] ?? 0);
+                if ($t <= 0) {
+                    continue;
+                }
+                $out[] = [
+                    'Target' => $t,
+                    'Action' => (string) ($rule['Action' . $n] ?? 'on'),
+                    'Value'  => (string) ($rule['Value' . $n] ?? ''),
+                ];
+            }
+            return $out;
+        }
+
+        $t = (int) ($rule['Target'] ?? 0);
+        if ($t <= 0) {
+            return [];
+        }
+        return [['Target' => $t, 'Action' => (string) ($rule['Action'] ?? 'on'), 'Value' => (string) ($rule['Value'] ?? '')]];
     }
 
     /**
-     * Wandelt den im Formular eingegebenen Text in den passenden Typ der Zielvariable um.
+     * Setzt Zielvariable per Aktion (wenn vorhanden) oder direkt per SetValue. Der Platzhalter
+     * „WALLBOX" (beliebige Groß-/Kleinschreibung) im Wert wird durch die aktuell benötigte
+     * Wallbox-Leistung ersetzt (Tibber-Erweiterung ggü. StromGedacht).
      */
-    private function ParseActionValue(int $targetID, string $raw)
+    private function applyActionToVariable(int $vid, string $action, string $rawValue, string $context): bool
     {
-        $info = IPS_GetVariable($targetID);
+        if ($vid <= 0 || !IPS_VariableExists($vid)) {
+            $this->SendDebug('Aktion', sprintf('%s: Zielvariable #%d existiert nicht', $context, $vid), 0);
+            return false;
+        }
+
+        $var = IPS_GetVariable($vid);
+        switch ($action) {
+            case 'off':
+                $value = false;
+                break;
+            case 'toggle':
+                $value = !(bool) GetValue($vid);
+                break;
+            case 'value':
+                $resolved = (strtoupper(trim($rawValue)) === 'WALLBOX')
+                    ? (string) $this->GetValueSafe('GridRewardWallboxRequest')
+                    : $rawValue;
+                $value = $this->castToVariableType($resolved, (int) $var['VariableType']);
+                break;
+            case 'on':
+            default:
+                $value = true;
+                break;
+        }
+        // Bool-Aktionen auf Nicht-Bool-Variablen sinnvoll abbilden (0/1)
+        if (is_bool($value) && (int) $var['VariableType'] !== VARIABLETYPE_BOOLEAN) {
+            $value = $this->castToVariableType($value ? '1' : '0', (int) $var['VariableType']);
+        }
+
+        $hasAction = ((int) $var['VariableAction'] > 0 || (int) $var['VariableCustomAction'] > 0);
+        $ok = $hasAction ? @RequestAction($vid, $value) : @SetValue($vid, $value);
+
+        $this->SendDebug('Aktion', sprintf(
+            '%s -> %s #%d = %s (%s)',
+            $context,
+            $hasAction ? 'RequestAction' : 'SetValue',
+            $vid,
+            json_encode($value),
+            ($ok === false) ? 'FEHLER' : 'ok'
+        ), 0);
+        return $ok !== false;
+    }
+
+    /** Wandelt den Regel-Wert (Text) in den Typ der Zielvariable um. */
+    private function castToVariableType(string $raw, int $type)
+    {
         $raw = trim($raw);
-        switch ($info['VariableType']) {
+        switch ($type) {
             case VARIABLETYPE_BOOLEAN:
-                return in_array(strtolower($raw), ['1', 'true', 'wahr', 'ja', 'yes', 'on'], true);
+                return in_array(strtolower($raw), ['1', 'true', 'wahr', 'ja', 'yes', 'on', 'ein', 'an'], true);
             case VARIABLETYPE_INTEGER:
                 return (int) $raw;
             case VARIABLETYPE_FLOAT:
                 return (float) str_replace(',', '.', $raw);
-            case VARIABLETYPE_STRING:
-                return $raw;
             default:
-                return null;
+                return $raw;
         }
+    }
+
+    /**
+     * Wertet alle Wenn->Dann-Regeln aus. Flankengesteuert: eine Regel feuert nur, wenn ihre Bedingung
+     * von unerfüllt auf erfüllt wechselt (bzw. bei 'change', wenn sich der Wert ändert) – nicht bei
+     * jeder Datenmeldung erneut. Ausnahme: Aktionen mit dem Wert-Platzhalter „WALLBOX" werden
+     * fortlaufend nachgeführt, solange die Bedingung erfüllt bleibt (mit Änderungs-Schutz pro
+     * Zielvariable), damit der Leistungssollwert der tatsächlichen Wallbox-Last folgt.
+     * $fire=false aktualisiert nur den Zustand ohne auszulösen (Baseline nach Übernehmen, verhindert
+     * Fehlauslösungen durch alte Flanken).
+     */
+    private function evaluateDataActions(bool $fire = true): void
+    {
+        $rules = json_decode($this->ReadPropertyString('DataActions'), true);
+        if (!is_array($rules)) {
+            $rules = [];
+        }
+        $state = json_decode($this->ReadAttributeString('RuleState'), true);
+        if (!is_array($state)) {
+            $state = [];
+        }
+        $stateChanged = false;
+        $lastVals = json_decode($this->ReadAttributeString('LastAppliedValues'), true);
+        if (!is_array($lastVals)) {
+            $lastVals = [];
+        }
+        $lastValsChanged = false;
+
+        foreach ($rules as $i => $rule) {
+            if (!is_array($rule)) {
+                continue;
+            }
+            $key = (string) $i;
+
+            $conditions = $this->normalizeRuleConditions($rule);
+            if (count($conditions) === 0) {
+                continue;
+            }
+
+            $prevState = $state[$key] ?? null;
+            if (is_array($prevState) && !array_key_exists('overall', $prevState)) {
+                $prevState = null;
+            }
+            $prevVals = is_array($prevState['vals'] ?? null) ? $prevState['vals'] : [];
+
+            $newVals = [];
+            $allSatisfied = true;
+            $hasMomentary = false;
+            $sourcesValid = true;
+
+            foreach ($conditions as $ci => $cond) {
+                $vid = @IPS_GetObjectIDByIdent($cond['Source'], $this->InstanceID);
+                if ($vid === false || $vid <= 0) {
+                    $sourcesValid = false;
+                    break;
+                }
+                $cur = GetValue($vid);
+                $serial = json_encode($cur);
+                $newVals[$ci] = $serial;
+
+                if ($cond['Op'] === 'change') {
+                    $hasMomentary = true;
+                    $changed = array_key_exists($ci, $prevVals) && ($prevVals[$ci] !== $serial);
+                    if (!$changed) {
+                        $allSatisfied = false;
+                    }
+                } elseif (!$this->evalRuleCondition($cur, $cond['Op'], $cond['Compare'])) {
+                    $allSatisfied = false;
+                }
+            }
+
+            if (!$sourcesValid) {
+                continue;
+            }
+
+            if ($hasMomentary) {
+                $fireNow = $allSatisfied;
+            } else {
+                $prevOverall = (bool) ($prevState['overall'] ?? false);
+                $fireNow = ($prevState !== null) && !$prevOverall && $allSatisfied;
+            }
+
+            $newState = ['overall' => $allSatisfied, 'vals' => $newVals];
+            if ($prevState === null || ($prevState['overall'] ?? null) !== $allSatisfied || ($prevState['vals'] ?? null) !== $newVals) {
+                $state[$key] = $newState;
+                $stateChanged = true;
+            }
+
+            if (!$fire || !(bool) ($rule['Active'] ?? true)) {
+                continue;
+            }
+
+            foreach ($this->normalizeRuleActions($rule) as $ai => $act) {
+                $isLive = ($act['Action'] === 'value') && (strtoupper(trim($act['Value'])) === 'WALLBOX');
+                $context = 'Automation ' . $this->describeDataAction($rule) . ' [' . $ai . ']';
+
+                if ($isLive) {
+                    if (!$allSatisfied) {
+                        continue; // nur solange die Bedingung erfüllt bleibt live nachführen
+                    }
+                    $wallboxRequest = (float) $this->GetValueSafe('GridRewardWallboxRequest');
+                    $dedupKey = (string) $act['Target'];
+                    $prevVal = $lastVals[$dedupKey] ?? null;
+                    if ($prevVal !== null && is_numeric($prevVal) && abs((float) $prevVal - $wallboxRequest) < 1.0) {
+                        continue; // keine relevante Änderung -> nicht spammen
+                    }
+                    if ($this->applyActionToVariable($act['Target'], 'value', (string) $wallboxRequest, $context)) {
+                        $lastVals[$dedupKey] = $wallboxRequest;
+                        $lastValsChanged = true;
+                    }
+                } elseif ($fireNow) {
+                    $this->applyActionToVariable($act['Target'], $act['Action'], $act['Value'], $context);
+                }
+            }
+        }
+
+        foreach (array_keys($state) as $k) {
+            if (!isset($rules[(int) $k])) {
+                unset($state[$k]);
+                $stateChanged = true;
+            }
+        }
+        if ($stateChanged) {
+            $this->WriteAttributeString('RuleState', json_encode($state));
+        }
+        if ($lastValsChanged) {
+            $this->WriteAttributeString('LastAppliedValues', json_encode($lastVals));
+        }
+    }
+
+    /** Prüft, ob der aktuelle Wert die Bedingung erfüllt. */
+    private function evalRuleCondition($cur, string $op, string $cmp): bool
+    {
+        switch ($op) {
+            case 'true':
+                return (bool) $cur === true;
+            case 'false':
+                return (bool) $cur === false;
+            case 'change':
+                return false; // Sonderfall, wird über den Wertvergleich behandelt
+        }
+
+        $cmp = trim($cmp);
+        if (is_bool($cur)) {
+            $cur = $cur ? 1 : 0;
+        }
+        $numeric = is_numeric($cur) && is_numeric(str_replace(',', '.', $cmp));
+        if ($numeric) {
+            $a = (float) $cur;
+            $b = (float) str_replace(',', '.', $cmp);
+        } else {
+            $a = (string) $cur;
+            $b = $cmp;
+        }
+
+        switch ($op) {
+            case 'eq':
+                return $numeric ? (abs($a - $b) < 1e-9) : (strcasecmp($a, $b) === 0);
+            case 'ne':
+                return $numeric ? (abs($a - $b) >= 1e-9) : (strcasecmp($a, $b) !== 0);
+            case 'gt':
+                return $numeric && $a > $b;
+            case 'ge':
+                return $numeric && $a >= $b;
+            case 'lt':
+                return $numeric && $a < $b;
+            case 'le':
+                return $numeric && $a <= $b;
+        }
+        return false;
+    }
+
+    /** Menschenlesbare Beschreibung einer einzelnen Bedingung, z. B. „Grid-Reward-Modus = 2". */
+    private function describeCondition(array $cond): string
+    {
+        $opText = [
+            'true' => 'wird EIN', 'false' => 'wird AUS', 'change' => 'ändert sich',
+            'eq' => '=', 'ne' => '≠', 'gt' => '>', 'ge' => '≥', 'lt' => '<', 'le' => '≤',
+        ];
+
+        $srcIdent = (string) ($cond['Source'] ?? '');
+        $srcName = $srcIdent;
+        foreach ($this->getAutomationSourceOptions() as $o) {
+            if ($o['value'] === $srcIdent) {
+                $srcName = $o['caption'];
+                break;
+            }
+        }
+
+        $op = (string) ($cond['Op'] ?? 'true');
+        $condText = $opText[$op] ?? $op;
+        if (!in_array($op, ['true', 'false', 'change'], true)) {
+            $condText .= ' ' . (string) ($cond['Compare'] ?? '');
+        }
+
+        return $srcName . ' ' . $condText;
+    }
+
+    /** Menschenlesbare Beschreibung einer Regel (Bedingungen mit UND, Aktionen mit "+"). */
+    private function describeDataAction(array $rule): string
+    {
+        $conditions = $this->normalizeRuleConditions($rule);
+        $condParts = array_map([$this, 'describeCondition'], $conditions);
+        $condText = (count($condParts) > 0) ? implode(' UND ', $condParts) : '?';
+
+        $actionParts = [];
+        foreach ($this->normalizeRuleActions($rule) as $act) {
+            $tVid = (int) $act['Target'];
+            $tName = ($tVid > 0 && IPS_VariableExists($tVid)) ? IPS_GetName($tVid) : ('#' . $tVid);
+            switch ($act['Action']) {
+                case 'off':
+                    $actionParts[] = $tName . ' ausschalten';
+                    break;
+                case 'toggle':
+                    $actionParts[] = $tName . ' umschalten';
+                    break;
+                case 'value':
+                    $actionParts[] = $tName . ' = ' . $act['Value'];
+                    break;
+                default:
+                    $actionParts[] = $tName . ' einschalten';
+                    break;
+            }
+        }
+        $doText = (count($actionParts) > 0) ? implode(' + ', $actionParts) : '?';
+
+        return sprintf('Wenn %s → %s', $condText, $doText);
+    }
+
+    /**
+     * Daten für den Regel-Editor der Kachel: Datenpunkte (Quellen) und schaltbare Zielvariablen mit
+     * Objektbaum-Pfad. JSON: {sources:[{v,c}], targets:[{v,c,p}]}
+     */
+    public function GetDataActionEditor(): string
+    {
+        $sources = [];
+        foreach ($this->getAutomationSourceOptions() as $o) {
+            $sources[] = ['v' => $o['value'], 'c' => $o['caption']];
+        }
+
+        $targets = [];
+        foreach (IPS_GetVariableList() as $vid) {
+            $var = IPS_GetVariable($vid);
+            if ((int) $var['VariableAction'] <= 0 && (int) $var['VariableCustomAction'] <= 0) {
+                continue;
+            }
+            $targets[] = ['v' => $vid, 'c' => IPS_GetName($vid), 'p' => IPS_GetLocation($vid)];
+            if (count($targets) >= 1000) {
+                break;
+            }
+        }
+        usort($targets, function ($a, $b) {
+            return strcasecmp($a['p'], $b['p']);
+        });
+
+        return json_encode(['sources' => $sources, 'targets' => $targets]);
+    }
+
+    /** Regeln als JSON für die Kachel: [{i, text, active, rule}] */
+    public function GetDataActions(): string
+    {
+        $rules = json_decode($this->ReadPropertyString('DataActions'), true);
+        $out = [];
+        if (is_array($rules)) {
+            foreach ($rules as $i => $rule) {
+                if (!is_array($rule)) {
+                    continue;
+                }
+                $out[] = [
+                    'i'      => $i,
+                    'text'   => $this->describeDataAction($rule),
+                    'active' => (bool) ($rule['Active'] ?? true),
+                    'rule'   => [
+                        'Conditions' => $this->normalizeRuleConditions($rule),
+                        'Actions'    => $this->normalizeRuleActions($rule),
+                    ],
+                ];
+            }
+        }
+        return json_encode($out);
+    }
+
+    /**
+     * Legt eine Regel an oder überschreibt sie ($Index < 0 = anhängen).
+     * $RuleJSON: {Active, Conditions:[{Source,Op,Compare},...] (UND), Actions:[{Target,Action,Value},...]}
+     */
+    public function SetDataAction(int $Index, string $RuleJSON): void
+    {
+        $in = json_decode($RuleJSON, true);
+        if (!is_array($in)) {
+            return;
+        }
+        $ops = ['true', 'false', 'eq', 'ne', 'gt', 'ge', 'lt', 'le', 'change'];
+        $acts = ['on', 'off', 'toggle', 'value'];
+
+        $conditions = [];
+        foreach ((array) ($in['Conditions'] ?? []) as $c) {
+            if (!is_array($c)) {
+                continue;
+            }
+            $src = trim((string) ($c['Source'] ?? ''));
+            if ($src === '') {
+                continue;
+            }
+            $conditions[] = [
+                'Source'  => $src,
+                'Op'      => in_array(($c['Op'] ?? ''), $ops, true) ? (string) $c['Op'] : 'true',
+                'Compare' => (string) ($c['Compare'] ?? ''),
+            ];
+        }
+        $conditions = array_slice($conditions, 0, 5);
+        if (count($conditions) === 0) {
+            return;
+        }
+
+        $actions = [];
+        foreach ((array) ($in['Actions'] ?? []) as $a) {
+            if (!is_array($a)) {
+                continue;
+            }
+            $target = (int) ($a['Target'] ?? 0);
+            if ($target <= 0) {
+                continue;
+            }
+            $actions[] = [
+                'Target' => $target,
+                'Action' => in_array(($a['Action'] ?? ''), $acts, true) ? (string) $a['Action'] : 'on',
+                'Value'  => (string) ($a['Value'] ?? ''),
+            ];
+        }
+        $actions = array_slice($actions, 0, 6);
+        if (count($actions) === 0) {
+            return;
+        }
+
+        $rule = [
+            'Active'     => (bool) ($in['Active'] ?? true),
+            'Conditions' => $conditions,
+            // Erste Bedingung zusätzlich flach spiegeln, für die klassische Formular-Liste
+            'Source'     => $conditions[0]['Source'],
+            'Op'         => $conditions[0]['Op'],
+            'Compare'    => $conditions[0]['Compare'],
+            'Actions'    => $actions,
+        ];
+
+        $rules = json_decode($this->ReadPropertyString('DataActions'), true);
+        if (!is_array($rules)) {
+            $rules = [];
+        }
+        if ($Index >= 0 && isset($rules[$Index])) {
+            $rules[$Index] = $rule;
+        } else {
+            $rules[] = $rule;
+        }
+        IPS_SetProperty($this->InstanceID, 'DataActions', json_encode(array_values($rules)));
+        IPS_ApplyChanges($this->InstanceID);
+    }
+
+    public function DeleteDataAction(int $Index): void
+    {
+        $rules = json_decode($this->ReadPropertyString('DataActions'), true);
+        if (!is_array($rules) || !isset($rules[$Index])) {
+            return;
+        }
+        unset($rules[$Index]);
+        IPS_SetProperty($this->InstanceID, 'DataActions', json_encode(array_values($rules)));
+        IPS_ApplyChanges($this->InstanceID);
+    }
+
+    /** Aktiviert/deaktiviert eine Regel (z. B. aus der Kachel). */
+    public function SetDataActionActive(int $Index, bool $Active): void
+    {
+        $rules = json_decode($this->ReadPropertyString('DataActions'), true);
+        if (!is_array($rules) || !isset($rules[$Index]) || !is_array($rules[$Index])) {
+            return;
+        }
+        if ((bool) ($rules[$Index]['Active'] ?? true) === $Active) {
+            return;
+        }
+        $rules[$Index]['Active'] = $Active;
+        IPS_SetProperty($this->InstanceID, 'DataActions', json_encode($rules));
+        IPS_ApplyChanges($this->InstanceID);
     }
 
     /**
@@ -945,6 +1488,74 @@ class TibberGridReward extends IPSModule
 
         $this->SendDebug(__FUNCTION__, 'Migriere alte EMS-Konfiguration nach Automations: ' . json_encode($rows), 0);
         IPS_SetProperty($this->InstanceID, 'Automations', json_encode($rows));
+        IPS_ApplyChanges($this->InstanceID);
+        return true;
+    }
+
+    /**
+     * Einmalige Migration der alten "Automations"-Zeilen (bis 1.17.x: Active/Mode/Target1/Value1/
+     * Target2/Value2, gültig für genau einen Grid-Reward-Modus) in das neue generische
+     * "DataActions"-Regelwerk: jede Zeile wird zu einer Regel mit genau einer Bedingung
+     * (GridRewardMode = Mode) und bis zu zwei Aktionen. So bleibt Dietmars bereits verifizierte
+     * Konfiguration (Modus 0/1/3 -> Automatik+Fixwert, Modus 2 -> Stromeinkauf+WALLBOX) ohne manuelle
+     * Neueingabe erhalten. Läuft nur einmal (Attribut DataActionsMigrated) und nur, wenn noch keine
+     * eigenen DataActions konfiguriert sind.
+     *
+     * @return bool true, wenn migriert wurde (Aufrufer sollte danach return; da ApplyChanges erneut
+     *              angestoßen wird)
+     */
+    private function MigrateAutomationsToDataActions(): bool
+    {
+        if ($this->ReadAttributeBoolean('DataActionsMigrated')) {
+            return false;
+        }
+        $this->WriteAttributeBoolean('DataActionsMigrated', true);
+
+        $currentRules = json_decode($this->ReadPropertyString('DataActions'), true);
+        if (!empty($currentRules)) {
+            return false; // schon eigene DataActions konfiguriert -> nichts überschreiben
+        }
+        $oldRows = json_decode($this->ReadPropertyString('Automations'), true);
+        if (!is_array($oldRows) || count($oldRows) === 0) {
+            return false; // nichts zu migrieren
+        }
+
+        $newRules = [];
+        foreach ($oldRows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $actions = [];
+            foreach (['Target1' => 'Value1', 'Target2' => 'Value2'] as $tKey => $vKey) {
+                $target = (int) ($row[$tKey] ?? 0);
+                if ($target <= 0) {
+                    continue;
+                }
+                $value = (string) ($row[$vKey] ?? '');
+                if ($value === '') {
+                    continue;
+                }
+                $actions[] = ['Target' => $target, 'Action' => 'value', 'Value' => $value];
+            }
+            if (count($actions) === 0) {
+                continue;
+            }
+            $mode = (string) (int) ($row['Mode'] ?? 0);
+            $newRules[] = [
+                'Active'     => (bool) ($row['Active'] ?? true),
+                'Conditions' => [['Source' => 'GridRewardMode', 'Op' => 'eq', 'Compare' => $mode]],
+                'Source'     => 'GridRewardMode',
+                'Op'         => 'eq',
+                'Compare'    => $mode,
+                'Actions'    => $actions,
+            ];
+        }
+        if (count($newRules) === 0) {
+            return false;
+        }
+
+        $this->SendDebug(__FUNCTION__, 'Migriere alte Automations nach DataActions: ' . json_encode($newRules), 0);
+        IPS_SetProperty($this->InstanceID, 'DataActions', json_encode($newRules));
         IPS_ApplyChanges($this->InstanceID);
         return true;
     }

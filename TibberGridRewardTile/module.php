@@ -54,6 +54,10 @@ class TibberGridRewardTile extends IPSModule
         // Simulations-Buttons auf der Kachel: standardmäßig AUS, da sie echte RequestAction-Befehle
         // an die konfigurierten EMS-Automationen der Quelle auslösen (siehe Datenmodul).
         $this->RegisterPropertyBoolean('ShowSimControls', false);
+        // Regel-Editor (Wenn->Dann) auf der Kachel: standardmäßig AUS (abweichend vom Vorbild
+        // StromGedachtTile, dort Standard AN) – hier steuert das Modul reale Aktoren (GoodWe-
+        // Speicher/Wallbox), daher bewusst erst nach explizitem Einschalten sichtbar.
+        $this->RegisterPropertyBoolean('ShowAutomations', false);
 
         // Als HTML-Kachel-Visualisierung anmelden
         $this->SetVisualizationType(1);
@@ -143,30 +147,78 @@ class TibberGridRewardTile extends IPSModule
     }
 
     /**
-     * Wird durch requestAction() aus der Kachel (module.html) ausgelöst, wenn „Simulations-Buttons
-     * auf der Kachel" aktiviert sind. Reicht den Befehl an die verbundene Datenquelle weiter – dort
-     * läuft exakt derselbe Code wie bei einem echten Tibber-Ereignis, inkl. aller konfigurierten
-     * EMS-Automationen.
+     * Wird durch requestAction() aus der Kachel (module.html) ausgelöst. Zwei Gruppen von Idents,
+     * jede über ihre eigene Sichtbarkeits-Einstellung geschützt: die Simulations-Buttons
+     * (ShowSimControls) und der Wenn->Dann-Regel-Editor (ShowAutomations). Reicht die Befehle an die
+     * verbundene Datenquelle weiter – dort läuft exakt derselbe Code wie bei einem echten
+     * Tibber-Ereignis bzw. wie beim Bearbeiten im Instanzformular.
      */
     public function RequestAction($Ident, $Value)
     {
-        if (!$this->ReadPropertyBoolean('ShowSimControls')) {
-            return;
-        }
         $src = $this->ResolveSource();
         if ($src <= 0 || !IPS_InstanceExists($src)) {
             $this->SendDebug(__FUNCTION__, 'Keine Datenquelle verbunden', 0);
             return;
         }
-        switch ($Ident) {
-            case 'Simulate':
-                if (in_array($Value, ['available', 'excess', 'shortage'], true)) {
-                    @TIBBERGR_Simulate($src, (string) $Value);
-                }
-                break;
-            case 'ResetSimulation':
-                @TIBBERGR_ResetSimulation($src);
-                break;
+
+        if (in_array($Ident, ['Simulate', 'ResetSimulation'], true)) {
+            if (!$this->ReadPropertyBoolean('ShowSimControls')) {
+                return;
+            }
+            switch ($Ident) {
+                case 'Simulate':
+                    if (in_array($Value, ['available', 'excess', 'shortage'], true)) {
+                        @TIBBERGR_Simulate($src, (string) $Value);
+                    }
+                    break;
+                case 'ResetSimulation':
+                    @TIBBERGR_ResetSimulation($src);
+                    break;
+            }
+            return;
+        }
+
+        if (in_array($Ident, ['rule', 'ruleEditor', 'targetOpts', 'condOpts', 'ruleSave', 'ruleDelete'], true)) {
+            if (!$this->ReadPropertyBoolean('ShowAutomations')) {
+                return;
+            }
+            switch ($Ident) {
+                case 'rule':
+                    $data = json_decode((string) $Value, true);
+                    if (is_array($data) && isset($data['i'])) {
+                        @TIBBERGR_SetDataActionActive($src, (int) $data['i'], (bool) ($data['on'] ?? false));
+                        $this->UpdateVisualizationValue($this->GetFullUpdateMessage());
+                    }
+                    break;
+                case 'ruleEditor':
+                    $editor = json_decode((string) @TIBBERGR_GetDataActionEditor($src), true);
+                    $this->UpdateVisualizationValue(json_encode(['editor' => is_array($editor) ? $editor : ['sources' => [], 'targets' => []]]));
+                    break;
+                case 'targetOpts':
+                    $vid = (int) $Value;
+                    $opts = json_decode((string) @TIBBERGR_GetTargetValueOptions($src, $vid), true);
+                    $this->UpdateVisualizationValue(json_encode(['targetOpts' => ['vid' => $vid, 'options' => is_array($opts) ? $opts : []]]));
+                    break;
+                case 'condOpts':
+                    // Profilwerte des gewählten Wenn-Datenpunkts (z. B. GridRewardMode) für den
+                    // Vergleichswert-Dropdown im Regel-Editor; leer = freie Eingabe
+                    $source = (string) $Value;
+                    $vid = $source !== '' ? @IPS_GetObjectIDByIdent($source, $src) : false;
+                    $opts = ($vid !== false && $vid > 0) ? json_decode((string) @TIBBERGR_GetTargetValueOptions($src, $vid), true) : [];
+                    $this->UpdateVisualizationValue(json_encode(['condOpts' => ['source' => $source, 'options' => is_array($opts) ? $opts : []]]));
+                    break;
+                case 'ruleSave':
+                    $data = json_decode((string) $Value, true);
+                    if (is_array($data) && isset($data['rule'])) {
+                        @TIBBERGR_SetDataAction($src, (int) ($data['i'] ?? -1), json_encode($data['rule']));
+                        $this->UpdateVisualizationValue($this->GetFullUpdateMessage());
+                    }
+                    break;
+                case 'ruleDelete':
+                    @TIBBERGR_DeleteDataAction($src, (int) $Value);
+                    $this->UpdateVisualizationValue($this->GetFullUpdateMessage());
+                    break;
+            }
         }
     }
 
@@ -207,6 +259,7 @@ class TibberGridRewardTile extends IPSModule
                 'emptyLabel' => $this->Translate('No flex devices'),
                 'devices'    => [],
                 'sim'        => false, // ohne Quelle keine Simulations-Buttons
+                'rules'      => null,
             ]));
         }
 
@@ -279,7 +332,22 @@ class TibberGridRewardTile extends IPSModule
             'simExcess'    => $this->Translate('Simulate charging (excess)'),
             'simShortage'  => $this->Translate('Simulate curtailment (shortage)'),
             'simReset'     => $this->Translate('Back to real status'),
+            'rules'        => $this->ReadSourceRules($src),
         ]));
+    }
+
+    /**
+     * Wenn->Dann-Regeln der Quelle für die Kachel ([{i,text,active,rule}] oder null, wenn
+     * Automationen in der Kachel ausgeblendet sind).
+     */
+    private function ReadSourceRules(int $instanceID): ?array
+    {
+        if (!$this->ReadPropertyBoolean('ShowAutomations')) {
+            return null;
+        }
+        $json = @TIBBERGR_GetDataActions($instanceID);
+        $rules = is_string($json) ? json_decode($json, true) : null;
+        return is_array($rules) ? $rules : null;
     }
 
     /**

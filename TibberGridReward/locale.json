@@ -44,7 +44,7 @@
       "Last event duration": "Letzter Einsatz: Dauer",
       "Last event energy": "Letzter Einsatz: Energie",
       "Select a variable above, apply, then click \"Show values\".": "Wähle oben eine Variable, übernimm, dann „Werte anzeigen“ klicken.",
-      "This variable has no profile with fixed values - enter a number/text directly.": "Diese Variable hat kein Profil mit festen Werten – Zahl/Text direkt eintragen."
+      "This variable has no fixed values - enter a number/text directly.": "Diese Variable hat keine festen Werte – Zahl/Text direkt eintragen."
     }
   }
 }

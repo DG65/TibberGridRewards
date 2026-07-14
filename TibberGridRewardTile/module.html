@@ -252,6 +252,42 @@
         .tgr-sim button:active {
             opacity: .7;
         }
+
+        /* Regeln (Wenn->Dann) */
+        .tgr-rules { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--box); }
+        .tgr-rules .hdrow { display: flex; align-items: center; justify-content: space-between; }
+        .tgr-rules .hd { font-size: calc(10px * var(--scale)); color: var(--textmuted); text-transform: uppercase; letter-spacing: .5px; }
+        .tgr-rule { display: flex; align-items: center; gap: 8px; background: var(--box); border-radius: 11px; padding: 8px 11px; }
+        .tgr-rule .t { flex: 1 1 auto; font-size: calc(12px * var(--scale)); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .tgr-rule.off .t { color: var(--textmuted); }
+        .tgr-ico { flex: 0 0 auto; border: none; background: none; color: var(--textmuted); cursor: pointer; font-size: calc(13px * var(--scale)); padding: 2px 4px; border-radius: 6px; }
+        .tgr-ico:hover { color: var(--text); background: var(--box); }
+        .tgr-ico.warn { color: #e05a4e; }
+        .tgr-add { border: 1px dashed var(--textmuted); background: none; color: var(--textmuted); border-radius: 999px; font-size: calc(11px * var(--scale)); padding: 2px 10px; cursor: pointer; }
+        .tgr-add:hover { color: var(--accent); border-color: var(--accent); }
+        .tgr-sw { flex: 0 0 auto; width: calc(36px * var(--scale)); height: calc(20px * var(--scale)); border: none; border-radius: 999px; background: rgba(127,135,145,.25); cursor: pointer; position: relative; padding: 0; }
+        .tgr-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: calc(16px * var(--scale)); height: calc(16px * var(--scale)); border-radius: 50%; background: #fff; transition: transform .15s ease; }
+        .tgr-sw.on { background: var(--accent); }
+        .tgr-sw.on::after { transform: translateX(calc(16px * var(--scale))); }
+
+        /* Regel-Editor (Overlay) */
+        .tgr-ed { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: flex-start; justify-content: center; padding: 24px 12px; overflow: auto; z-index: 10; }
+        .tgr-ed.open { display: flex; }
+        .tgr-ed-card { background: var(--bg); border: 1px solid rgba(127,135,145,.25); border-radius: 14px; padding: 16px; width: 100%; max-width: 520px; box-sizing: border-box; backdrop-filter: blur(6px); background-color: rgba(30,36,44,.97); }
+        @media (prefers-color-scheme: light) { .tgr-ed-card { background-color: rgba(250,251,252,.98); } }
+        .tgr-ed-card h3 { margin: 0 0 12px; font-size: calc(14px * var(--scale)); color: var(--text); }
+        .tgr-ed-card label { display: block; font-size: calc(10px * var(--scale)); color: var(--textmuted); text-transform: uppercase; letter-spacing: .5px; margin: 10px 0 4px; }
+        .tgr-ed-card select, .tgr-ed-card input { width: 100%; box-sizing: border-box; background: var(--box); color: var(--text); border: 1px solid rgba(127,135,145,.25); border-radius: 8px; padding: 8px 10px; font-size: calc(13px * var(--scale)); font-family: var(--font); margin-top: 6px; }
+        .tgr-ed-actions { display: flex; gap: 8px; margin-top: 16px; }
+        .tgr-ed-actions .tgr-btn { flex: 1 1 auto; }
+        .tgr-ed-hint { font-size: calc(11px * var(--scale)); color: var(--textmuted); margin-top: 6px; }
+        .ed-cond-box, .ed-act-box { border: 1px solid rgba(127,135,145,.25); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+        .ed-cond-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .ed-cond-tag { font-size: calc(10px * var(--scale)); font-weight: 700; letter-spacing: .5px; color: var(--accent); text-transform: uppercase; }
+        .ed-cond-box select, .ed-cond-box input, .ed-act-box select, .ed-act-box input { margin-top: 6px; }
+
+        .tgr-btn { border: none; border-radius: 10px; padding: 10px 8px; font-size: calc(13px * var(--scale)); font-weight: 600; cursor: pointer; background: var(--box); color: var(--text); }
+        .tgr-btn.on { color: var(--accent); }
     </style>
 </head>
 
@@ -290,6 +326,28 @@
             <button id="sim-shortage" onclick="requestAction('Simulate', 'shortage');"></button>
             <button id="sim-reset" onclick="requestAction('ResetSimulation', 0);"></button>
         </div>
+
+        <div class="tgr-rules" id="rules-wrap" style="display:none"></div>
+    </div>
+
+    <div class="tgr-ed" id="tgr-ed">
+        <div class="tgr-ed-card">
+            <h3 id="ed-title">Regel bearbeiten</h3>
+
+            <label>Wenn (mehrere Bedingungen werden mit UND verknüpft)</label>
+            <div id="ed-conditions"></div>
+            <button class="tgr-add" type="button" id="ed-addcond">+ Bedingung (UND)</button>
+
+            <label>Dann (bis zu 6 Aktionen gleichzeitig)</label>
+            <div id="ed-actions"></div>
+            <button class="tgr-add" type="button" id="ed-addact">+ Aktion</button>
+            <div class="tgr-ed-hint">Angeboten werden schaltbare Variablen (mit Aktion). Andere Ziele lassen sich im Instanzformular wählen. Platzhalter „WALLBOX" als Wert wird laufend durch die aktuell benötigte Wallbox-Leistung ersetzt.</div>
+
+            <div class="tgr-ed-actions">
+                <button class="tgr-btn" id="ed-cancel">Abbrechen</button>
+                <button class="tgr-btn on" id="ed-save">Speichern</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -298,6 +356,12 @@
             if (!data) {
                 return;
             }
+
+            // Teil-Nachrichten für den Regel-Editor (kein vollständiges Kachel-Update)
+            if (data.editor !== undefined) { ED.data = data.editor; edOpenNow(); return; }
+            if (data.targetOpts !== undefined) { edApplyActionTargetOpts(data.targetOpts); return; }
+            if (data.condOpts !== undefined) { edApplyCondOpts(data.condOpts); return; }
+
             var root = document.documentElement.style;
             // Gesetzte Farbe -> überschreiben; leer -> Theme-Default aus dem CSS verwenden.
             function applyVar(name, val) {
@@ -385,26 +449,435 @@
                 e.className = 'tgr-empty';
                 e.textContent = data.emptyLabel || '';
                 dev.appendChild(e);
+            } else {
+                list.forEach(function (d) {
+                    var row = document.createElement('div');
+                    row.className = 'tgr-dev';
+                    var dot = document.createElement('span');
+                    dot.className = 'tgr-dev-dot';
+                    dot.style.background = d.color || '#7a8a99';
+                    var name = document.createElement('span');
+                    name.className = 'tgr-dev-name';
+                    name.textContent = d.name || '';
+                    var meta = document.createElement('span');
+                    meta.className = 'tgr-dev-meta';
+                    meta.textContent = d.meta || '';
+                    row.appendChild(dot);
+                    row.appendChild(name);
+                    row.appendChild(meta);
+                    dev.appendChild(row);
+                });
+            }
+
+            var rules = document.getElementById('rules-wrap');
+            rules.textContent = '';
+            if (Array.isArray(data.rules)) {
+                rules.style.display = 'flex';
+                var hdrow = document.createElement('div');
+                hdrow.className = 'hdrow';
+                var hd = document.createElement('div');
+                hd.className = 'hd';
+                hd.textContent = 'Automationen';
+                var add = document.createElement('button');
+                add.className = 'tgr-add';
+                add.textContent = '+ Neue Regel';
+                add.onclick = function () { edOpen(-1, null); };
+                hdrow.appendChild(hd);
+                hdrow.appendChild(add);
+                rules.appendChild(hdrow);
+                data.rules.forEach(function (r) {
+                    var row = document.createElement('div');
+                    row.className = 'tgr-rule' + (r.active ? '' : ' off');
+                    var t = document.createElement('span');
+                    t.className = 't';
+                    t.textContent = r.text;
+                    t.title = r.text;
+                    var ed = document.createElement('button');
+                    ed.className = 'tgr-ico';
+                    ed.textContent = '✎';
+                    ed.title = 'Regel bearbeiten';
+                    ed.onclick = function () { edOpen(r.i, r.rule, r.active); };
+                    var del = document.createElement('button');
+                    del.className = 'tgr-ico';
+                    del.textContent = '\u{1F5D1}';
+                    del.title = 'Regel löschen';
+                    del.onclick = function () {
+                        if (del.dataset.confirm === '1') { requestAction('ruleDelete', r.i); return; }
+                        del.dataset.confirm = '1';
+                        del.textContent = 'Sicher?';
+                        del.className = 'tgr-ico warn';
+                        setTimeout(function () { del.dataset.confirm = ''; del.textContent = '\u{1F5D1}'; del.className = 'tgr-ico'; }, 3000);
+                    };
+                    var sw = document.createElement('button');
+                    sw.className = 'tgr-sw' + (r.active ? ' on' : '');
+                    sw.setAttribute('aria-label', (r.active ? 'Regel deaktivieren: ' : 'Regel aktivieren: ') + r.text);
+                    sw.onclick = function () { requestAction('rule', JSON.stringify({ i: r.i, on: !r.active })); };
+                    row.appendChild(t);
+                    row.appendChild(ed);
+                    row.appendChild(del);
+                    row.appendChild(sw);
+                    rules.appendChild(row);
+                });
+            } else {
+                rules.style.display = 'none';
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Regel-Editor
+        // ------------------------------------------------------------------
+        var ED = { data: null, i: -1, rule: null, active: true, pendingOpen: false };
+        var NUM_OPS = ['eq', 'ne', 'gt', 'ge', 'lt', 'le'];
+        var OP_OPTIONS = [
+            { v: 'true', c: 'wird EIN (true)' },
+            { v: 'false', c: 'wird AUS (false)' },
+            { v: 'eq', c: '= (gleich)' },
+            { v: 'ne', c: '≠ (ungleich)' },
+            { v: 'gt', c: '> (größer)' },
+            { v: 'ge', c: '≥ (größer gleich)' },
+            { v: 'lt', c: '< (kleiner)' },
+            { v: 'le', c: '≤ (kleiner gleich)' },
+            { v: 'change', c: 'ändert sich' }
+        ];
+
+        function edOpen(i, rule, active) {
+            ED.i = i;
+            ED.rule = rule || { Conditions: [], Actions: [] };
+            ED.active = (active === undefined) ? true : !!active;
+            if (ED.data) { edOpenNow(); }
+            else { ED.pendingOpen = true; requestAction('ruleEditor', ''); }
+        }
+
+        function edBuildConditionRow(cond) {
+            cond = cond || { Source: '', Op: 'true', Compare: '' };
+            var box = document.createElement('div');
+            box.className = 'ed-cond-box';
+
+            var hd = document.createElement('div');
+            hd.className = 'ed-cond-hd';
+            var tag = document.createElement('span');
+            tag.className = 'ed-cond-tag';
+            hd.appendChild(tag);
+            var del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'tgr-ico warn';
+            del.textContent = '\u{1F5D1}';
+            del.title = 'Bedingung entfernen';
+            del.onclick = function () { box.remove(); edRefreshConditionTags(); };
+            hd.appendChild(del);
+            box.appendChild(hd);
+
+            var src = document.createElement('select');
+            src.className = 'ed-cond-src';
+            (ED.data.sources || []).forEach(function (s) {
+                var o = document.createElement('option');
+                o.value = s.v; o.textContent = s.c;
+                src.appendChild(o);
+            });
+            if (cond.Source) src.value = cond.Source;
+            box.appendChild(src);
+
+            var op = document.createElement('select');
+            op.className = 'ed-cond-op';
+            OP_OPTIONS.forEach(function (o) {
+                var e = document.createElement('option');
+                e.value = o.v; e.textContent = o.c;
+                op.appendChild(e);
+            });
+            op.value = cond.Op || 'true';
+            box.appendChild(op);
+
+            // Vergleichswert: freies Textfeld, wird bei Datenpunkten mit bekannten
+            // Profilwerten (z. B. Grid-Reward-Modus) durch ein Dropdown ersetzt.
+            var cmpSel = document.createElement('select');
+            cmpSel.className = 'ed-cond-cmpsel';
+            cmpSel.style.display = 'none';
+            box.appendChild(cmpSel);
+
+            var cmp = document.createElement('input');
+            cmp.type = 'text';
+            cmp.className = 'ed-cond-cmp';
+            cmp.placeholder = 'Vergleichswert';
+            cmp.value = cond.Compare || '';
+            box.appendChild(cmp);
+
+            op.onchange = function () { updateCmpVisibility(box); };
+            src.onchange = function () {
+                // Alte Auswahl verwerfen, bis die Profilwerte der neuen Quelle eintreffen
+                cmpSel.textContent = '';
+                updateCmpVisibility(box);
+                requestAction('condOpts', src.value);
+            };
+            updateCmpVisibility(box);
+            // Profilwerte immer abfragen, auch wenn die Quelle nur die (automatische)
+            // Vorauswahl des Selects ist, nicht nur bei einer bestehenden Regel
+            if (src.value) requestAction('condOpts', src.value);
+
+            return box;
+        }
+
+        /** Zeigt je nach Bedingung entweder das Vergleichswert-Textfeld oder -Dropdown (falls Profilwerte geladen sind). */
+        function updateCmpVisibility(box) {
+            var op = box.querySelector('.ed-cond-op').value;
+            var inp = box.querySelector('.ed-cond-cmp');
+            var sel = box.querySelector('.ed-cond-cmpsel');
+            var showCompare = NUM_OPS.indexOf(op) >= 0;
+            if (!showCompare) {
+                inp.style.display = 'none';
+                sel.style.display = 'none';
                 return;
             }
-            list.forEach(function (d) {
-                var row = document.createElement('div');
-                row.className = 'tgr-dev';
-                var dot = document.createElement('span');
-                dot.className = 'tgr-dev-dot';
-                dot.style.background = d.color || '#7a8a99';
-                var name = document.createElement('span');
-                name.className = 'tgr-dev-name';
-                name.textContent = d.name || '';
-                var meta = document.createElement('span');
-                meta.className = 'tgr-dev-meta';
-                meta.textContent = d.meta || '';
-                row.appendChild(dot);
-                row.appendChild(name);
-                row.appendChild(meta);
-                dev.appendChild(row);
+            var hasOpts = sel.options.length > 0;
+            inp.style.display = hasOpts ? 'none' : '';
+            sel.style.display = hasOpts ? '' : 'none';
+        }
+
+        /** Wendet die Profilwerte einer Wenn-Quelle auf alle passenden Bedingungszeilen an. */
+        function edApplyCondOpts(payload) {
+            if (!payload) return;
+            document.querySelectorAll('#ed-conditions .ed-cond-box').forEach(function (box) {
+                if (box.querySelector('.ed-cond-src').value !== payload.source) return;
+                var sel = box.querySelector('.ed-cond-cmpsel');
+                var inp = box.querySelector('.ed-cond-cmp');
+                var opField = box.querySelector('.ed-cond-op');
+                var opts = payload.options || [];
+                sel.textContent = '';
+                opts.forEach(function (o) {
+                    var e = document.createElement('option');
+                    e.value = o.v; e.textContent = o.c + ' (' + o.v + ')';
+                    sel.appendChild(e);
+                });
+                if (opts.length && inp.value !== '') {
+                    var match = opts.find(function (o) { return String(o.v) === String(inp.value); });
+                    if (match) sel.value = String(match.v);
+                }
+                // "wird EIN/AUS" ergibt bei einem Datenpunkt mit mehreren Profilwerten
+                // meist keinen Sinn - automatisch auf "= (gleich)" wechseln, damit die
+                // Werte sofort sichtbar sind, statt erst nach manuellem Umstellen.
+                if (opts.length && (opField.value === 'true' || opField.value === 'false')) {
+                    opField.value = 'eq';
+                }
+                updateCmpVisibility(box);
             });
         }
+
+        function edRefreshConditionTags() {
+            var boxes = document.querySelectorAll('#ed-conditions .ed-cond-box');
+            boxes.forEach(function (box, idx) {
+                box.querySelector('.ed-cond-tag').textContent = (idx === 0) ? 'WENN' : 'UND';
+                var del = box.querySelector('.tgr-ico');
+                del.style.visibility = (boxes.length > 1) ? 'visible' : 'hidden';
+            });
+        }
+
+        document.getElementById('ed-addcond').onclick = function () {
+            document.getElementById('ed-conditions').appendChild(edBuildConditionRow(null));
+            edRefreshConditionTags();
+        };
+
+        function edBuildActionRow(act) {
+            act = act || { Target: 0, Action: 'on', Value: '' };
+            var box = document.createElement('div');
+            box.className = 'ed-act-box';
+
+            var hd = document.createElement('div');
+            hd.className = 'ed-cond-hd';
+            var tag = document.createElement('span');
+            tag.className = 'ed-cond-tag';
+            hd.appendChild(tag);
+            var del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'tgr-ico warn';
+            del.textContent = '\u{1F5D1}';
+            del.title = 'Aktion entfernen';
+            del.onclick = function () { box.remove(); edRefreshActionTags(); };
+            hd.appendChild(del);
+            box.appendChild(hd);
+
+            var tfilter = document.createElement('input');
+            tfilter.type = 'text';
+            tfilter.className = 'ed-act-tfilter';
+            tfilter.placeholder = 'Zielvariable suchen (Name oder Pfad) …';
+            tfilter.autocomplete = 'off';
+            box.appendChild(tfilter);
+
+            var targetSel = document.createElement('select');
+            targetSel.className = 'ed-act-target';
+            box.appendChild(targetSel);
+
+            var actSel = document.createElement('select');
+            actSel.className = 'ed-act-action';
+            [['on', 'Einschalten'], ['off', 'Ausschalten'], ['toggle', 'Umschalten'], ['value', 'Wert setzen']].forEach(function (p) {
+                var o = document.createElement('option');
+                o.value = p[0]; o.textContent = p[1];
+                actSel.appendChild(o);
+            });
+            actSel.value = act.Action || 'on';
+            box.appendChild(actSel);
+
+            var valWrap = document.createElement('div');
+            valWrap.className = 'ed-act-valwrap';
+            var valSel = document.createElement('select');
+            valSel.className = 'ed-act-valsel';
+            valSel.style.display = 'none';
+            var valInp = document.createElement('input');
+            valInp.type = 'text';
+            valInp.className = 'ed-act-val';
+            valInp.placeholder = 'Wert (z. B. WALLBOX)';
+            valInp.value = act.Value || '';
+            valWrap.appendChild(valSel);
+            valWrap.appendChild(valInp);
+            box.appendChild(valWrap);
+
+            function renderTargets(filter) {
+                targetSel.textContent = '';
+                var f = (filter || '').toLowerCase();
+                var count = 0, hasCurrent = false;
+                (ED.data.targets || []).forEach(function (t) {
+                    if (count >= 200) return;
+                    var label = t.p || t.c;
+                    if (f && label.toLowerCase().indexOf(f) < 0) return;
+                    var o = document.createElement('option');
+                    o.value = t.v; o.textContent = label;
+                    targetSel.appendChild(o);
+                    if (String(t.v) === String(act.Target)) hasCurrent = true;
+                    count++;
+                });
+                if (!hasCurrent && act.Target > 0) {
+                    var known = (ED.data.targets || []).find(function (t) { return String(t.v) === String(act.Target); });
+                    var cur = document.createElement('option');
+                    cur.value = act.Target;
+                    cur.textContent = known ? (known.p || known.c) : ('#' + act.Target);
+                    targetSel.insertBefore(cur, targetSel.firstChild);
+                }
+                if (act.Target > 0) targetSel.value = String(act.Target);
+            }
+            renderTargets('');
+
+            function syncValueField() {
+                var isValue = (actSel.value === 'value');
+                valWrap.style.display = isValue ? 'block' : 'none';
+                if (isValue) {
+                    var vid = parseInt(targetSel.value || '0', 10);
+                    valSel.style.display = 'none';
+                    valInp.style.display = '';
+                    if (vid > 0) requestAction('targetOpts', vid);
+                }
+            }
+            syncValueField();
+
+            actSel.onchange = syncValueField;
+            targetSel.onchange = syncValueField;
+            tfilter.oninput = function () { renderTargets(this.value); syncValueField(); };
+
+            return box;
+        }
+
+        function edRefreshActionTags() {
+            var boxes = document.querySelectorAll('#ed-actions .ed-act-box');
+            boxes.forEach(function (box, idx) {
+                box.querySelector('.ed-cond-tag').textContent = 'AKTION ' + (idx + 1);
+                var del = box.querySelector('.tgr-ico');
+                del.style.visibility = (boxes.length > 1) ? 'visible' : 'hidden';
+            });
+        }
+
+        document.getElementById('ed-addact').onclick = function () {
+            var boxes = document.querySelectorAll('#ed-actions .ed-act-box');
+            if (boxes.length >= 6) return;
+            document.getElementById('ed-actions').appendChild(edBuildActionRow(null));
+            edRefreshActionTags();
+        };
+
+        /** Wendet die Profilwerte eines Dann-Ziels auf alle passenden, aktuell sichtbaren Aktionszeilen an. */
+        function edApplyActionTargetOpts(to) {
+            if (!document.getElementById('tgr-ed').classList.contains('open') || !to) return;
+            document.querySelectorAll('#ed-actions .ed-act-box').forEach(function (box) {
+                var targetSel = box.querySelector('.ed-act-target');
+                var actSel = box.querySelector('.ed-act-action');
+                if (actSel.value !== 'value') return;
+                var vid = parseInt(targetSel.value || '0', 10);
+                if (parseInt(to.vid, 10) !== vid) return;
+                var sel = box.querySelector('.ed-act-valsel');
+                var inp = box.querySelector('.ed-act-val');
+                if (to.options && to.options.length) {
+                    sel.textContent = '';
+                    to.options.forEach(function (o) {
+                        var e = document.createElement('option');
+                        e.value = o.v; e.textContent = o.c + ' (' + o.v + ')';
+                        sel.appendChild(e);
+                    });
+                    if (inp.value !== '') sel.value = inp.value;
+                    if (sel.selectedIndex < 0) sel.selectedIndex = 0;
+                    sel.style.display = '';
+                    inp.style.display = 'none';
+                } else {
+                    sel.style.display = 'none';
+                    inp.style.display = '';
+                }
+            });
+        }
+
+        function edOpenNow() {
+            if (!ED.data) return;
+            if (ED.pendingOpen) ED.pendingOpen = false;
+
+            var condsWrap = document.getElementById('ed-conditions');
+            condsWrap.textContent = '';
+            var conds = (ED.rule.Conditions && ED.rule.Conditions.length) ? ED.rule.Conditions : [null];
+            conds.forEach(function (c) { condsWrap.appendChild(edBuildConditionRow(c)); });
+            edRefreshConditionTags();
+
+            var actsWrap = document.getElementById('ed-actions');
+            actsWrap.textContent = '';
+            var acts = (ED.rule.Actions && ED.rule.Actions.length) ? ED.rule.Actions : [null];
+            acts.forEach(function (a) { actsWrap.appendChild(edBuildActionRow(a)); });
+            edRefreshActionTags();
+
+            document.getElementById('ed-title').textContent = (ED.i < 0) ? 'Neue Regel' : 'Regel bearbeiten';
+            document.getElementById('tgr-ed').classList.add('open');
+        }
+
+        function edClose() { document.getElementById('tgr-ed').classList.remove('open'); }
+
+        document.getElementById('ed-cancel').onclick = edClose;
+        document.getElementById('tgr-ed').onclick = function (ev) { if (ev.target === this) edClose(); };
+        document.getElementById('ed-save').onclick = function () {
+            var conditions = [];
+            document.querySelectorAll('#ed-conditions .ed-cond-box').forEach(function (box) {
+                var src = box.querySelector('.ed-cond-src').value;
+                if (!src) return;
+                var cmpSel = box.querySelector('.ed-cond-cmpsel');
+                var cmpVal = (cmpSel.style.display !== 'none') ? cmpSel.value : box.querySelector('.ed-cond-cmp').value;
+                conditions.push({
+                    Source: src,
+                    Op: box.querySelector('.ed-cond-op').value,
+                    Compare: cmpVal
+                });
+            });
+            if (!conditions.length) return;
+
+            var actions = [];
+            document.querySelectorAll('#ed-actions .ed-act-box').forEach(function (box) {
+                var target = parseInt(box.querySelector('.ed-act-target').value || '0', 10);
+                if (!(target > 0)) return;
+                var actionVal = box.querySelector('.ed-act-action').value;
+                var valSel = box.querySelector('.ed-act-valsel');
+                var value = (actionVal === 'value')
+                    ? ((valSel.style.display !== 'none') ? valSel.value : box.querySelector('.ed-act-val').value)
+                    : '';
+                actions.push({ Target: target, Action: actionVal, Value: value });
+            });
+            if (!actions.length) return;
+
+            var rule = {
+                Active: ED.active,
+                Conditions: conditions,
+                Actions: actions
+            };
+            requestAction('ruleSave', JSON.stringify({ i: ED.i, rule: rule }));
+            edClose();
+        };
     </script>
 </body>
 

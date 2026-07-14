@@ -1,6 +1,53 @@
 {
   "elements": [
     {
+      "type": "ExpansionPanel",
+      "caption": "📖 Dokumentation & Hilfe",
+      "expanded": false,
+      "items": [
+        {
+          "type": "Label",
+          "caption": "── Funktionsweise ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Die Kachel ist eine eigenständige Instanz für die Visualisierung und von der Datenverbindung getrennt: Sie liest ihre Werte aus einer TibberGridReward-Instanz und aktualisiert sich sofort, wenn sich dort etwas ändert. Gibt es genau eine TibberGridReward-Instanz, wird sie automatisch als Quelle erkannt – nur bei mehreren musst du unten manuell wählen."
+        },
+        {
+          "type": "Label",
+          "caption": "── Darstellung ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Statusfarben, Flächen-/Text- und Schriftoptionen passen die Kachel an deine Visualisierung an; ohne eigene Angabe folgt die Kachel dem hellen/dunklen Design des Endgeräts. Der Button „Farben & Schrift auf Standard zurücksetzen“ ändert nur das offene Formular – gespeichert wird erst mit „Änderungen übernehmen“."
+        },
+        {
+          "type": "Label",
+          "caption": "── Automationen ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Mit „Automationen (Wenn->Dann) auf der Kachel anzeigen und bearbeiten“ verwaltet die Kachel die Regeln der TibberGridReward-Quelle vollständig: „+ Neue Regel“ legt eine Regel an, ✎ bearbeitet, der Papierkorb löscht (mit Rückfrage), der Schalter aktiviert/deaktiviert. Im Editor lassen sich beliebig viele UND-Bedingungen und bis zu 6 Aktionen je Regel anlegen; bei „Wert setzen“ erscheinen dort, wo vorhanden, die im Profil/der Darstellung definierten Werte als Auswahlliste. ACHTUNG: löst dabei wirklich die konfigurierten Automationen der Datenquelle aus – daher standardmäßig deaktiviert."
+        },
+        {
+          "type": "Label",
+          "caption": "── Simulations-Buttons ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Blendet auf der Kachel selbst Buttons ein, mit denen sich Verfügbar/Laden/Drosselung simulieren und die Simulation wieder beenden lässt. ACHTUNG: Löst dabei wirklich die konfigurierten Automationen der Datenquelle aus – daher ebenfalls standardmäßig deaktiviert."
+        },
+        {
+          "type": "Label",
+          "caption": "── Weitere Hilfe ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Ausführliche Dokumentation, Beispiele und Hintergründe: github.com/DG65/TibberGridRewards."
+        }
+      ]
+    },
+    {
       "type": "Label",
       "caption": "Eigenständige Kachel für die Tibber Grid Rewards. Die Datenquelle wird automatisch erkannt, wenn es genau eine TibberGridReward-Instanz gibt – nur bei mehreren musst du unten manuell wählen. Die Kachel füllt die Tile randlos und ist von der Datenverbindung getrennt."
     },
@@ -42,6 +89,21 @@
           "type": "CheckBox",
           "name": "ShowSimControls",
           "caption": "Simulations-Buttons auf der Kachel anzeigen"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "🤖 Automationen anzeigen",
+      "items": [
+        {
+          "type": "Label",
+          "caption": "Zeigt die in der Datenquelle konfigurierten Wenn->Dann-Regeln auf der Kachel an, mit Ein-/Ausschalten je Regel und einem eigenen Regel-Editor (beliebig viele UND-Bedingungen und Aktionen je Regel, inkl. abhängiger Dropdowns für Vergleichs- und Zielwerte). ACHTUNG: Über den Editor lassen sich hier wirklich die EMS-Automationen der Datenquelle anlegen/ändern/löschen – inklusive Aktoren wie GoodWe-Speicher und Wallbox. Standardmäßig deaktiviert, da jeder mit Zugriff aufs Webfront damit reale Aktionen konfigurieren könnte."
+        },
+        {
+          "type": "CheckBox",
+          "name": "ShowAutomations",
+          "caption": "Automationen (Wenn->Dann) auf der Kachel anzeigen und bearbeiten"
         }
       ]
     },

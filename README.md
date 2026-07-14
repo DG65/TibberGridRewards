@@ -153,8 +153,19 @@ Funktionen der verbundenen Datenquelle auf wie die Buttons im Konfigurationsform
 die EMS-Verdrahtung zu testen, ohne die Instanzkonfiguration zu öffnen.
 
 > **Achtung:** Diese Buttons lösen echte `RequestAction`-Befehle an die in der Datenquelle
-> konfigurierten EMS-Automationen aus. Standardmäßig **deaktiviert**, da jeder mit Zugriff auf das
+> konfigurierten Automationen aus. Standardmäßig **deaktiviert**, da jeder mit Zugriff auf das
 > Webfront (z. B. Familie, Gäste über eine geteilte Ansicht) sie antippen könnte.
+
+### Regel-Editor auf der Kachel (optional, standardmäßig aus)
+
+Im Kachel-Formular lässt sich unter **🤖 Automationen anzeigen** eine Checkbox aktivieren, die auf der
+Kachel selbst die konfigurierten Wenn→Dann-Regeln anzeigt – mit Ein-/Ausschalten und Löschen je Regel
+sowie einem vollständigen Regel-Editor (beliebig viele Bedingungen und Aktionen, mit abhängigen
+Dropdowns für Vergleichs- und Zielwerte).
+
+> **Achtung:** Über den Editor lassen sich hier direkt die Automationen der Datenquelle anlegen,
+> ändern und löschen – inklusive echter Aktoren wie Speicher-Entladesperre und Wallbox-Steuerung.
+> Standardmäßig **deaktiviert**, aus demselben Grund wie bei den Simulations-Buttons.
 
 ## Wallbox-Leistung & EMS-Übergabe
 
@@ -198,50 +209,60 @@ Die Fälle „Preis ok / Freigabe" und „Zwangsbeladen" fallen bewusst in **Wer
 (aktiv bei Wert 1 **und** 2). Energiezählung und Einsatz-Log beziehen sich auf **`excess` (Wert 2)** –
 den Zeitraum, in dem für die Vergütung tatsächlich aus dem Netz geladen wird.
 
-### EMS-Automationen je Modus – ohne eigenes Skript konfigurierbar
+### Automationen „Wenn → Dann" – ohne eigenes Skript konfigurierbar
 
 Damit **jeder Nutzer** frei festlegen kann, wie sein EMS/Wechselrichter reagiert, gibt es im
-Datenmodul unter **🎯 EMS-Steuerung je Grid-Reward-Modus** eine Liste von **Automationszeilen**.
-Jede Zeile besteht aus:
+Datenmodul unter **🎯 Automationen (Wenn → Dann)** eine Liste von **Regeln**. Jede Regel besteht aus:
 
-- dem **Grid-Reward-Modus** (0–3), bei dessen Eintritt sie ausgeführt wird,
-- **Zielvariable 1 + Wert 1** (Pflicht),
-- **Zielvariable 2 + Wert 2** (optional) – für den typischen Fall, dass ein Grid-Reward-Ereignis
-  **zwei Datenpunkte gleichzeitig** braucht (z. B. den Betriebsmodus-Schalter deines Wechselrichters
-  **und** einen Leistungssollwert) – beides in **einer** Zeile, ohne zwei getrennte Konfigurationen.
+- einer **Bedingung** über einen Datenpunkt dieser Instanz (z. B. „Grid-Reward-Modus = 2", „Wallbox
+  lädt wird EIN", „Status-Detail ändert sich"),
+- **Zielvariable 1 + Aktion + Wert 1** (Pflicht),
+- **Zielvariable 2 + Aktion + Wert 2** (optional) – für den typischen Fall, dass ein Grid-Reward-
+  Übergang **zwei Datenpunkte gleichzeitig** braucht (z. B. den Betriebsmodus-Schalter deines
+  Wechselrichters **und** einen Leistungssollwert) – beides in **einer** Regel, ohne zwei getrennte
+  Konfigurationen.
 
-Beim Wechsel in den passenden Modus setzt das Modul beide Zielvariablen automatisch per
-`RequestAction`. Der eingegebene Wert wird selbsttätig in den Typ der Zielvariable umgewandelt (Zahl,
-`true`/`false` oder Text). Für den Wert gibt es einen besonderen Platzhalter:
+Sobald die Bedingung eintritt, setzt das Modul beide Zielvariablen automatisch per `RequestAction`
+(**flankengesteuert** – eine Regel feuert beim Eintreten, nicht bei jeder Datenmeldung erneut). Als
+Aktion stehen Einschalten/Ausschalten/Umschalten/Wert setzen zur Wahl; ein eingegebener Wert wird
+selbsttätig in den Typ der Zielvariable umgewandelt (Zahl, `true`/`false` oder Text). Für den Wert
+gibt es einen besonderen Platzhalter:
 
 - **`WALLBOX`** (Groß-/Kleinschreibung egal) wird durch die aktuell benötigte Wallbox-Leistung ersetzt
-  und **laufend live nachgeführt**, solange der Modus aktiv bleibt – so kauft das EMS immer nur so
-  viel Energie aus dem Netz ein, wie fürs Laden tatsächlich gebraucht wird. Geschrieben wird nur bei
-  relevanter Änderung, um den Aktor nicht zu spammen.
+  und **laufend live nachgeführt**, solange die Bedingung erfüllt bleibt – so kauft das EMS immer nur
+  so viel Energie aus dem Netz ein, wie fürs Laden tatsächlich gebraucht wird. Geschrieben wird nur
+  bei relevanter Änderung, um den Aktor nicht zu spammen.
 - Jeder andere Text/Zahl wird als **fester Wert** verwendet (z. B. sinnvoll für Modi, in denen der
   Leistungssollwert ohnehin ignoriert wird, weil der Betriebsmodus „Automatik" ist).
 
-Es sind **beliebig viele Zeilen pro Modus** erlaubt – braucht dein EMS mehr als zwei Datenpunkte für
-einen Übergang, legst du einfach eine weitere Zeile mit demselben Modus an.
+Es sind **beliebig viele Regeln** erlaubt – braucht dein EMS mehr als zwei Datenpunkte für einen
+Übergang, legst du einfach eine weitere Regel mit derselben Bedingung an.
 
-**Werte nachschlagen:** Da jede Zeile eine andere Zielvariable mit anderem Profil haben kann,
+**Werte nachschlagen:** Da jede Regel eine andere Zielvariable mit anderem Profil haben kann,
 unterstützt IP-Symcon hier keinen Dropdown, der sich abhängig von der in derselben Zeile gewählten
 Zielvariable anpasst (Listenspalten sind für alle Zeilen einheitlich). Als Ersatz gibt es darunter
 **„🔍 Werte nachschlagen"**: Variable wählen, übernehmen, **„Werte anzeigen"** klicken – darunter
 erscheinen alle möglichen Werte der Zielvariable als Text (z. B. „0 = Gestoppt · 1 = Automatik · …")
-zum Ablesen und Abtippen in Wert 1/2.
+zum Ablesen und Abtippen in Vergleichswert/Wert 1/2.
 
-Das deckt eine einfache, statische Zuordnung ab (z. B. „Modus 2 → Betriebsmodus = Stromeinkauf +
-Leistung = `WALLBOX`"). Für komplexere, dynamische Logik (z. B. „nur laden, wenn die Batterie beim
-Einsatz-Start bereits lud, und die Leistung aus der vorherigen Einstellung + Wallbox-Leistung
-berechnen") bleibt ein eigenes Ereignis-Skript auf `GridRewardMode` die passendere Wahl – das Modul
-liefert dafür weiterhin alle nötigen Werte (`GridRewardMode`, `GridRewardWallboxRequest`,
-`WallboxPowerTotal`).
+**Komfortabler Regel-Editor in der Kachel:** Die Kachel `TibberGridRewardTile` bietet unter
+**🤖 Automationen anzeigen** (standardmäßig **deaktiviert**, siehe Warnhinweis dort) einen
+interaktiven Editor direkt im Webfront – mit **beliebig vielen UND-verknüpften Bedingungen** und
+**beliebig vielen Aktionen** (bis 6) je Regel, jeweils mit echten, voneinander unabhängigen Dropdowns
+für Vergleichs- und Zielwerte (dort, wo die jeweilige Variable feste Werte hat). Regeln lassen sich
+dort auch direkt ein-/ausschalten und löschen, ohne die Instanzkonfiguration zu öffnen. Das deckt auch
+komplexere, dynamische Logik ab, für die im klassischen Formular mehrere Zeilen mit unterschiedlichen
+Zielvariablen und Profilen nötig wären.
+
+Für sehr dynamische Logik (z. B. „nur laden, wenn die Batterie beim Einsatz-Start bereits lud, und die
+Leistung aus der vorherigen Einstellung + Wallbox-Leistung berechnen") bleibt ein eigenes
+Ereignis-Skript auf `GridRewardMode` weiterhin die passendere Wahl – das Modul liefert dafür weiterhin
+alle nötigen Werte (`GridRewardMode`, `GridRewardWallboxRequest`, `WallboxPowerTotal`).
 
 > **Update von einer älteren Version:** Eine bestehende Konfiguration aus den Feldern
-> „EMS Leistungsmodus/-Sollwert" (bis Version 1.15.x) wird beim ersten Start automatisch und
-> einmalig als vier äquivalente Automationszeilen (eine je Modus) übernommen – keine manuelle
-> Nacharbeit nötig.
+> „EMS Leistungsmodus/-Sollwert" (bis Version 1.15.x) bzw. aus den „Automations"-Zeilen (1.16.0/
+> 1.17.0) wird beim ersten Start automatisch und einmalig in das neue Regelformat übernommen – keine
+> manuelle Nacharbeit nötig.
 
 ### Wirtschaftlich optimal steuern (Strategie fürs EMS)
 
@@ -320,8 +341,8 @@ registriertes Flex-Gerät entsteht kein `Delivering`-Signal.
 Echte Grid-Reward-Einsätze sind oft selten und unvorhersehbar – zum Testen der eigenen EMS-Verdrahtung
 gibt es im Formular unter **🧪 Simulation** drei Buttons: **Verfügbar**, **Laden simulieren (excess)**
 und **Drosselung simulieren (shortage)**. Sie durchlaufen exakt denselben Code wie ein echtes
-Tibber-Ereignis – Modusbestimmung, Energiezählung, Einsatz-Log **und** die konfigurierten EMS-Aktionen
-(„🎯 EMS-Steuerung je Grid-Reward-Modus"). So lässt sich die komplette Kette prüfen, ohne auf einen
+Tibber-Ereignis – Modusbestimmung, Energiezählung, Einsatz-Log **und** die konfigurierten Automationen
+(„🎯 Automationen (Wenn → Dann)"). So lässt sich die komplette Kette prüfen, ohne auf einen
 echten Einsatz zu warten.
 
 > **Achtung:** Die Simulation löst dabei wirklich die konfigurierten `RequestAction`-Befehle an deine
