@@ -31,8 +31,13 @@ hart ab, statt die Zusatzfunktion wegzulassen.
 Damit die Zusage jederzeit belegbar ist statt nur behauptet:
 
 ```
-php tools/check-standalone.php
+php .tools/check-standalone.php
 ```
+
+(Ordner bewusst `.tools` mit führendem Punkt: Die Symcon-Store-Prüfung scannt jeden
+Top-Level-Ordner als Modul-Kandidaten und meldet einen Fehler, wenn dort kein `module.json`
+liegt — ein sichtbarer `tools/`-Ordner hat genau das ausgelöst. Versteckte Ordner werden vom
+Scanner übersprungen.)
 
 Der Prüfer durchsucht alle PHP-Dateien nach Aufrufen fremder Modulpräfixe (`MHUB_`, `PVF_`,
 `HEISHA_`, `SGW_`, `TESSIE_`, `EMS_`, `GWET_`) und meldet jeden, der **in seiner aufrufenden

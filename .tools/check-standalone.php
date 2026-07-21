@@ -30,7 +30,7 @@ function phpFiles(string $dir): array {
         $p = $f->getPathname();
         if (substr($p, -4) !== '.php')            continue;
         if (strpos($p, DIRECTORY_SEPARATOR . '.git' . DIRECTORY_SEPARATOR) !== false) continue;
-        if (strpos($p, DIRECTORY_SEPARATOR . 'tools' . DIRECTORY_SEPARATOR) !== false) continue;
+        if (strpos($p, DIRECTORY_SEPARATOR . '.tools' . DIRECTORY_SEPARATOR) !== false) continue;
         $out[] = $p;
     }
     sort($out);
