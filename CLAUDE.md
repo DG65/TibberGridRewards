@@ -16,6 +16,8 @@ gemeinsame Regeln und dokumentierte Schnittstellen geeinigt haben.
 | **StromGedacht** | Netzampel (TransnetBW) | `DG65/StromGedachtWidget` | Vorbild für unsere `DataActions`-Regel-Engine + Kachel-Editor |
 | **Tessie** | Tesla-Fahrzeuge (Wallbox-SOC) | `DG65/Tessie` | keiner |
 | **EMS** | Entscheidungslogik / Batteriefahrweise | EMS-Repo · `../EMS` | konsumiert unsere Statusvariablen (`Delivering`, `GridRewardMode`, `GridRewardWallboxRequest`) und `TIBBERGR_GetPriceCurve()` (Preiskurve, optional) |
+| **ChargerHub** | Wallboxen (Modbus TCP) | `DG65/ChargerHub` | keiner (Stand: Gerüst v0.1.0, noch ohne Fachlogik) |
+| **MigrationsHub** | Migration von Bestandsgeräten/Archivwerten | `DG65/MigrationsHub` | keiner (Stand: Gerüst v0.1.0, noch ohne Fachlogik) |
 
 ### Grundregel: jedes Modul bleibt eigenständig — und das wird geprüft
 
@@ -74,6 +76,10 @@ der Repo-Eigentümer.
 
 Bei Anliegen, die mehrere Module betreffen, wird die zuständige Sitzung angesprochen und
 gebeten, es weiterzureichen — nicht im fremden Repo selbst gearbeitet.
+
+**Koordinationsmodell (Stand 2026-07-21, von der EMS-Sitzung mitgeteilt):** Dietmar ist der
+zentrale Ansprechpartner für den gesamten Verbund; die übergreifende Koordination läuft über ihn.
+Modul-Sitzungen werden von ihm nur bei modulspezifischen Aufgaben direkt angesprochen.
 
 ## Öffentlicher Vertrag: Preiskurve (`TIBBERGR_GetPriceCurve`, seit 2.1.0)
 
