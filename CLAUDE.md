@@ -85,9 +85,11 @@ Beleg genug).
 
 ```php
 TIBBERGR_GetPriceCurve(int $id): array
-// [[ 'start'=>int, 'end'=>int, 'price'=>float (ct/kWh brutto),
+// Liste, aufsteigend nach 'start'. Lücken sind zulässig - keine lückenlose Abdeckung annehmen.
+// [[ 'start'=>int (inklusiv), 'end'=>int (EXKLUSIV, Intervall [start,end)),
+//    'price'=>float (ct/kWh brutto, NICHT EUR/kWh),
 //    'basis'=>'endkunde', 'netzentgelt'=>'enthalten',
-//    'level'=>'CHEAP'|'NORMAL'|'EXPENSIVE'|null ], …]
+//    'level'=>null, 'level_tibber'=>string|null ], …]
 ```
 
 - **`basis`/`netzentgelt` sind konstant**, weil dieses Modul ausschließlich den vollständigen
@@ -95,11 +97,20 @@ TIBBERGR_GetPriceCurve(int $id): array
   reinen Spotpreis. Für Nicht-Tibber-Kunden ist das explizit NICHT unsere Baustelle; das wäre ein
   eigenes, netzbetreiberspezifisches Overlay-Modul (Werte dürfen nirgends fest im Code stehen, ~850
   Netzbetreiber in Deutschland).
-- **`level`** ist Tibbers 5-stufiges Schema (`VERY_CHEAP…VERY_EXPENSIVE`), auf 3 Stufen abgebildet
-  (`MapPriceLevel()`); `null`, wenn Tibber für einen Slot kein Level liefert.
-- **`end`** wird aus dem Abstand zum nächsten Slot berechnet (Tibber liefert je nach Tarif Stunden-
-  oder Viertelstunden-Werte, kein explizites Dauer-Feld); der letzte Slot übernimmt die Dauer des
-  vorherigen.
+- **`level` ist bewusst IMMER `null`** (Korrektur nach MeterHub-Review, 2.1.1): `CHEAP`/`NORMAL`/
+  `EXPENSIVE` wäre Tibbers eigenes, aus einem gleitenden Mittel berechnetes Vokabular — eine
+  Spotpreis-Quelle hat das nicht und müsste es nachbilden. Zwei verschiedene Berechnungen im selben
+  Feld hätten bei identischer Preislage je nach Quelle zu unterschiedlichen EMS-Entscheidungen führen
+  können, ohne dass es auffällt. Die Einstufung ist deshalb Sache des EMS, einheitlich für alle
+  Quellen (Steuerhoheits-Regel: Entscheidungen gehören dorthin, nicht in die Signalquelle). Tibbers
+  **unveränderter** Rohwert (5-stufig, `VERY_CHEAP…VERY_EXPENSIVE`) bleibt separat in
+  `level_tibber` erhalten — dort NICHT auf 3 Stufen abbilden oder sonst verändern, sonst entsteht
+  wieder eine zweite Taxonomie.
+- **`end` ist exklusiv**, berechnet aus dem Abstand zum nächsten Slot (Tibber liefert je nach Tarif
+  Stunden- oder Viertelstunden-Werte, kein explizites Dauer-Feld): bei aneinandergrenzenden Slots ist
+  `end` des einen exakt gleich `start` des nächsten. Der letzte Slot übernimmt die Dauer des
+  vorherigen (Fallback 3600 s bei nur einem Slot). Abfrage beim Konsumenten also
+  `now >= start && now < end`.
 - Läuft unabhängig vom Grid-Rewards-Status: eigene Properties (`PriceApiToken`, `PriceHomeID`), eigene
   Attribute (`PriceHomes`, `PriceCache`), eigener Timer (`PriceRefresh`, alle 20 Minuten — häufig genug,
   um die Preise für den Folgetag zeitnah zu übernehmen, sobald Tibber sie veröffentlicht, üblicherweise

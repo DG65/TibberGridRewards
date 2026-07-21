@@ -664,16 +664,20 @@ class TibberGridReward extends IPSModule
             // Komfort-Variable in €/kWh (wie die bestehende Tibber.RatePerKWh-Variable
             // GridRewardEffectiveRate) - der Vertrag GetPriceCurve() liefert weiterhin ct/kWh.
             $this->SetValueIfExists('CurrentPrice', round((float) $current['total'], 3));
-            $this->SetValueIfExists('CurrentPriceLevel', (string) ($this->MapPriceLevel((string) ($current['level'] ?? '')) ?? ''));
+            // Tibbers eigene Einstufung unverändert anzeigen (kein Nachbau/keine eigene Taxonomie) -
+            // die maßgebliche Einstufung für Automationen trifft das EMS, nicht diese Variable.
+            $this->SetValueIfExists('CurrentPriceLevel', (string) ($current['level'] ?? ''));
         }
         return true;
     }
 
     /**
      * Wandelt die rohen Tibber-Preis-Slots (startsAt/total/level je Slot) in das Verbund-Format um:
-     * [{start,end,price,basis,netzentgelt,level}]. "end" wird aus dem Abstand zum jeweils nächsten
-     * Slot berechnet (Tibber liefert je nach Tarif Stunden- oder Viertelstunden-Werte); der letzte
-     * Slot übernimmt die Dauer des vorherigen (Fallback 3600 s, falls nur ein Slot vorliegt).
+     * [{start,end,price,basis,netzentgelt,level,level_tibber}]. "end" wird aus dem Abstand zum
+     * jeweils nächsten Slot berechnet (Tibber liefert je nach Tarif Stunden- oder Viertelstunden-
+     * Werte, exklusiv: end eines Slots = start des nächsten); der letzte Slot übernimmt die Dauer
+     * des vorherigen (Fallback 3600 s, falls nur ein Slot vorliegt). Fehlende/ungültige Rohdaten
+     * werden übersprungen statt erfunden - Lücken in der zurückgegebenen Liste sind zulässig.
      */
     private function NormalizePriceSlots(array $rawSlots): array
     {
@@ -696,47 +700,41 @@ class TibberGridReward extends IPSModule
             if ($duration > 0) {
                 $lastDuration = $duration;
             }
+            $tibberLevel = (string) ($s['level'] ?? '');
             $out[] = [
-                'start'       => $start,
-                'end'         => $start + $duration,
-                'price'       => round(((float) $s['total']) * 100, 2),
-                'basis'       => 'endkunde',
-                'netzentgelt' => 'enthalten',
-                'level'       => $this->MapPriceLevel((string) ($s['level'] ?? '')),
+                'start'        => $start,
+                'end'          => $start + $duration,
+                'price'        => round(((float) $s['total']) * 100, 2),
+                'basis'        => 'endkunde',
+                'netzentgelt'  => 'enthalten',
+                // Einstufung ist Sache des EMS (Steuerhoheits-Regel: Entscheidungen gehören dorthin,
+                // nicht in die Signalquelle) - hier bewusst IMMER null, um keine zweite, abweichende
+                // Taxonomie neben der des EMS zu erzeugen. Tibbers eigenes (5-stufiges) Vokabular
+                // bleibt separat in level_tibber erhalten, unverändert und unübersetzt.
+                'level'        => null,
+                'level_tibber' => $tibberLevel !== '' ? $tibberLevel : null,
             ];
         }
         return $out;
     }
 
-    /** Tibbers 5-stufiges Preislevel auf das im Verbund vereinbarte 3-stufige Schema abbilden. */
-    private function MapPriceLevel(string $tibberLevel): ?string
-    {
-        switch ($tibberLevel) {
-            case 'VERY_CHEAP':
-            case 'CHEAP':
-                return 'CHEAP';
-            case 'NORMAL':
-                return 'NORMAL';
-            case 'EXPENSIVE':
-            case 'VERY_EXPENSIVE':
-                return 'EXPENSIVE';
-            default:
-                return null; // Tibber liefert für diesen Slot kein Level (z. B. manche Tarife)
-        }
-    }
-
     /**
      * Öffentlicher Vertrag für preisgetriebene Automationen/EMS: Endkunden-Preiskurve (heute + morgen,
-     * sobald von Tibber veröffentlicht) als Liste von Zeit-Slots, Konvention wie MHUB_GetFunctions
-     * (Liste statt Einzelobjekt, auch bei leerem/einzelnem Ergebnis).
+     * sobald von Tibber veröffentlicht) als Liste von Zeit-Slots, aufsteigend nach 'start'. Konvention
+     * wie MHUB_GetFunctions (Liste statt Einzelobjekt, auch bei leerem/einzelnem Ergebnis).
      *
-     * Rückgabe je Slot: ['start'=>int Unix, 'end'=>int Unix, 'price'=>float ct/kWh brutto,
-     * 'basis'=>'endkunde', 'netzentgelt'=>'enthalten', 'level'=>'CHEAP'|'NORMAL'|'EXPENSIVE'|null].
+     * Rückgabe je Slot: ['start'=>int Unix (inklusiv), 'end'=>int Unix (EXKLUSIV, Intervall
+     * [start,end)), 'price'=>float ct/kWh brutto inkl. USt., 'basis'=>'endkunde',
+     * 'netzentgelt'=>'enthalten', 'level'=>null, 'level_tibber'=>string|null].
      *
      * 'basis'/'netzentgelt' sind konstant, weil dieses Modul ausschließlich den vollständigen
      * Tibber-Endkundenpreis liefert (inkl. evtl. zeitvariabler Netzentgelte wie §14a Modul 3) -
-     * nie einen reinen Spotpreis. Ist der Cache leer (frisch angelegte Instanz, noch kein Timer
-     * gelaufen), wird einmalig synchron nachgeladen, damit der erste Aufruf nicht leer zurückkommt.
+     * nie einen reinen Spotpreis. 'level' ist bewusst IMMER null (Einstufung trifft das EMS
+     * einheitlich für alle Quellen, siehe CLAUDE.md) - NICHT durchreichen, sonst entsteht dieselbe
+     * Preislage mit zwei unterschiedlichen Einstufungen. Lücken in der Liste sind zulässig, Aufrufer
+     * dürfen keine lückenlose Abdeckung annehmen. Ist der Cache leer (frisch angelegte Instanz, noch
+     * kein Timer gelaufen), wird einmalig synchron nachgeladen, damit der erste Aufruf nicht leer
+     * zurückkommt.
      */
     public function GetPriceCurve(): array
     {

@@ -290,17 +290,27 @@ die **offizielle** Tibber-API die Endkunden-Preiskurve als öffentliche Funktion
 
 ```php
 TIBBERGR_GetPriceCurve(int $InstanzID): array
-// [[ 'start' => int,        // Unix-Zeitstempel, Slot-Beginn
-//    'end'   => int,        // Unix-Zeitstempel, Slot-Ende
-//    'price' => float,      // Bruttopreis in ct/kWh
+// Liste, aufsteigend nach 'start'. Lücken sind zulässig – keine lückenlose Abdeckung annehmen.
+// [[ 'start' => int,        // Unix-Zeitstempel, Slot-Beginn (inklusiv)
+//    'end'   => int,        // Unix-Zeitstempel, Slot-Ende (EXKLUSIV -> Intervall [start, end))
+//    'price' => float,      // Bruttopreis in ct/kWh (nicht EUR/kWh), inkl. USt.
 //    'basis' => 'endkunde', // dieses Modul liefert immer den vollständigen Endkundenpreis
 //    'netzentgelt' => 'enthalten', // zeitvariable Netzentgelte sind im Preis bereits enthalten
-//    'level' => 'CHEAP'|'NORMAL'|'EXPENSIVE'|null, // optional, null wenn Tibber kein Level liefert
+//    'level' => null,       // Einstufung ist Sache des EMS, siehe unten
+//    'level_tibber' => string|null, // Tibbers eigenes Preisniveau, unverändert (z. B. "VERY_CHEAP")
 // ], …]
 ```
 
 Liste statt Einzelobjekt (auch bei leerem Ergebnis), damit spätere Erweiterungen die Signatur nicht
 brechen – Konvention wie bei den anderen Modul-Verbund-Verträgen (z. B. `MHUB_GetFunctions`).
+
+**Warum `level` immer `null` ist:** `CHEAP`/`NORMAL`/`EXPENSIVE` wäre Tibbers eigenes, aus einem
+gleitenden Mittel berechnetes Vokabular – eine Spotpreis-Quelle hätte das nicht und müsste es
+nachbilden. Träte dasselbe Feld mit zwei verschiedenen Berechnungen auf, könnte ein EMS bei
+**identischer Preislage je nach Quelle unterschiedlich entscheiden**, ohne dass es auffällt. Die
+Einstufung ist deshalb bewusst Sache des EMS, einheitlich für alle Preisquellen – nicht dieses Moduls.
+Tibbers eigene, unveränderte Einstufung bleibt trotzdem verfügbar, aber klar getrennt in
+`level_tibber`.
 
 **Warum ein eigener Token statt Weiterreichen aus TibberV2:** Ein Personal Access Token
 (`developer.tibber.com`) ist von Haus aus für die Preis-/Verbrauchsdaten der offiziellen API gedacht,

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.1
+
+- **Fix (Modul-Verbund-Review durch MeterHub): `GetPriceCurve()` reicht `level` nicht mehr durch.**
+  `CHEAP`/`NORMAL`/`EXPENSIVE` ist Tibbers eigenes, aus einem gleitenden Mittel berechnetes
+  Vokabular – eine Spotpreis-Quelle hätte das nicht und müsste es nachbilden, wodurch dasselbe Feld
+  zwei unterschiedliche Bedeutungen bekäme und ein EMS bei identischer Preislage je nach Quelle
+  anders entscheiden könnte, ohne dass es auffällt. `level` ist deshalb jetzt **immer `null`**
+  (Einstufung ist Sache des EMS, einheitlich für alle Quellen); Tibbers unveränderter Rohwert steht
+  weiterhin zur Verfügung, aber klar getrennt in einem neuen Feld `level_tibber`.
+- Vertrag zusätzlich präzisiert (Verhalten unverändert, nur dokumentiert/gegengetestet): `price` ist
+  ct/kWh (nicht EUR/kWh), `end` ist exklusiv (Intervall `[start, end)`), Lücken in der zurückgegebenen
+  Liste sind zulässig.
+
 ## 2.1.0
 
 - **Neu: Endkunden-Preiskurve über die offizielle Tibber-API** (Panel „💶 Preiskurve“, komplett
