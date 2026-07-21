@@ -15,7 +15,7 @@ gemeinsame Regeln und dokumentierte Schnittstellen geeinigt haben.
 | **HeishaMon** | Panasonic-Wärmepumpe | `DG65/HeishaMon` | keiner |
 | **StromGedacht** | Netzampel (TransnetBW) | `DG65/StromGedachtWidget` | Vorbild für unsere `DataActions`-Regel-Engine + Kachel-Editor |
 | **Tessie** | Tesla-Fahrzeuge (Wallbox-SOC) | `DG65/Tessie` | keiner |
-| **EMS** | Entscheidungslogik / Batteriefahrweise | EMS-Repo · `../EMS` | konsumiert unsere Statusvariablen (`Delivering`, `GridRewardMode`, `GridRewardWallboxRequest`) |
+| **EMS** | Entscheidungslogik / Batteriefahrweise | EMS-Repo · `../EMS` | konsumiert unsere Statusvariablen (`Delivering`, `GridRewardMode`, `GridRewardWallboxRequest`) und `TIBBERGR_GetPriceCurve()` (Preiskurve, optional) |
 
 ### Grundregel: jedes Modul bleibt eigenständig — und das wird geprüft
 
@@ -74,6 +74,40 @@ der Repo-Eigentümer.
 
 Bei Anliegen, die mehrere Module betreffen, wird die zuständige Sitzung angesprochen und
 gebeten, es weiterzureichen — nicht im fremden Repo selbst gearbeitet.
+
+## Öffentlicher Vertrag: Preiskurve (`TIBBERGR_GetPriceCurve`, seit 2.1.0)
+
+Zweite, von Grid Rewards komplett unabhängige Anbindung: die **offizielle** Tibber-API (Personal
+Access Token, `https://api.tibber.com/v1-beta/gql`), NICHT die App-API. Grund für den eigenen Token
+statt Weiterreichen aus TibberV2: bewusste Entkopplung von einem Fremdmodul, dessen Pflegezustand
+wir nicht beeinflussen können (InverterHub hat dort eine 146 Tage alte Preisdatum-Variable gefunden —
+Beleg genug).
+
+```php
+TIBBERGR_GetPriceCurve(int $id): array
+// [[ 'start'=>int, 'end'=>int, 'price'=>float (ct/kWh brutto),
+//    'basis'=>'endkunde', 'netzentgelt'=>'enthalten',
+//    'level'=>'CHEAP'|'NORMAL'|'EXPENSIVE'|null ], …]
+```
+
+- **`basis`/`netzentgelt` sind konstant**, weil dieses Modul ausschließlich den vollständigen
+  Tibber-Endkundenpreis liefert (inkl. evtl. zeitvariabler Netzentgelte wie §14a Modul 3) — nie einen
+  reinen Spotpreis. Für Nicht-Tibber-Kunden ist das explizit NICHT unsere Baustelle; das wäre ein
+  eigenes, netzbetreiberspezifisches Overlay-Modul (Werte dürfen nirgends fest im Code stehen, ~850
+  Netzbetreiber in Deutschland).
+- **`level`** ist Tibbers 5-stufiges Schema (`VERY_CHEAP…VERY_EXPENSIVE`), auf 3 Stufen abgebildet
+  (`MapPriceLevel()`); `null`, wenn Tibber für einen Slot kein Level liefert.
+- **`end`** wird aus dem Abstand zum nächsten Slot berechnet (Tibber liefert je nach Tarif Stunden-
+  oder Viertelstunden-Werte, kein explizites Dauer-Feld); der letzte Slot übernimmt die Dauer des
+  vorherigen.
+- Läuft unabhängig vom Grid-Rewards-Status: eigene Properties (`PriceApiToken`, `PriceHomeID`), eigene
+  Attribute (`PriceHomes`, `PriceCache`), eigener Timer (`PriceRefresh`, alle 20 Minuten — häufig genug,
+  um die Preise für den Folgetag zeitnah zu übernehmen, sobald Tibber sie veröffentlicht, üblicherweise
+  zwischen 13 und 14 Uhr). Ein fehlender/ungültiger Token darf den Grid-Rewards-Teil nicht
+  beeinträchtigen und umgekehrt — siehe `ApplyPriceChanges()`, getrennt von den Active/Email/Password-
+  Prüfungen in `ApplyChanges()`.
+- Signaturänderungen an `GetPriceCurve()` ankündigen (aktuell konsumiert von EMS); interne Umbauten
+  (z. B. Cache-Format) sind frei, solange die Rückgabestruktur stabil bleibt.
 
 ## Branch-Modell: `beta` ist der aktive Entwicklungszweig
 

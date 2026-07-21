@@ -4,10 +4,11 @@ IP-Symcon-Bibliothek, die den **Tibber-Grid-Rewards-Status** über die Tibber-Ap
 als Variablen bereitstellt. Kern ist ein handlungsfähiges Signal (`Grid Reward aktiv`), mit dem sich
 eigene Automationen auslösen lassen.
 
-> **Abgrenzung:** Die offizielle Tibber-API (Preise, Verbrauch/Produktion, Live-Messung/Pulse) wird
+> **Abgrenzung:** Verbrauch/Produktion und Live-Messung (Pulse) über die offizielle Tibber-API werden
 > hier **nicht** abgebildet – dafür gibt es das ausgereifte Modul
-> [Tibber V.2](https://github.com/da8ter/TibberV2). Diese Bibliothek **ergänzt** es ausschließlich um
-> Grid Rewards.
+> [Tibber V.2](https://github.com/da8ter/TibberV2). Diese Bibliothek ergänzt es um Grid Rewards
+> **und** – optional, über einen eigenen Personal Access Token – die Endkunden-Preiskurve
+> (`TIBBERGR_GetPriceCurve()`, siehe [Preiskurve für preisgetriebene Automationen](#preiskurve-für-preisgetriebene-automationen)).
 
 ---
 
@@ -21,6 +22,7 @@ eigene Automationen auslösen lassen.
 - [Variablen](#variablen)
 - [Kachel für die Visualisierung](#kachel-für-die-visualisierung)
 - [Wallbox-Leistung & EMS-Übergabe](#wallbox-leistung--ems-übergabe)
+- [Preiskurve für preisgetriebene Automationen](#preiskurve-für-preisgetriebene-automationen)
 - [Anwendungsbeispiel: Speicher & Wallbox steuern](#anwendungsbeispiel-speicher--wallbox-steuern)
 - [FAQ](#faq)
 - [Fehlersuche](#fehlersuche)
@@ -275,10 +277,49 @@ Stunde, für die du sie aufhebst) vs. Netzpreis − Grid-Reward.
   entladen.
 - **`shortage` (Modus 3):** Netzbezug wird „bestraft" (Reward fürs Reduzieren) → Auto aus, Haus aus
   Batterie/PV.
-- **Batterie-Arbitrage** (wann aus Netz laden / entladen) macht das **EMS anhand der Tibber-Preise**
-  (TibberV2): laden wenn `Preis + Verluste < Batteriewert`, entladen wenn `Preis − Reward >
-  Batteriewert`. Dieses Modul liefert dafür die Grid-Reward-Schicht; den Preis-Forecast steuert
-  TibberV2 bei.
+- **Batterie-Arbitrage** (wann aus Netz laden / entladen) macht das **EMS anhand der Tibber-Preise**:
+  laden wenn `Preis + Verluste < Batteriewert`, entladen wenn `Preis − Reward > Batteriewert`. Dieses
+  Modul liefert dafür die Grid-Reward-Schicht sowie – optional, siehe unten – die Preiskurve selbst
+  (`TIBBERGR_GetPriceCurve()`); alternativ liefert TibberV2 den Preis-Forecast.
+
+## Preiskurve für preisgetriebene Automationen
+
+Optional und **komplett unabhängig** vom Grid-Rewards-Teil oben: Mit einem eigenen
+[Personal Access Token](https://developer.tibber.com/settings/access-token) liefert das Modul über
+die **offizielle** Tibber-API die Endkunden-Preiskurve als öffentliche Funktion:
+
+```php
+TIBBERGR_GetPriceCurve(int $InstanzID): array
+// [[ 'start' => int,        // Unix-Zeitstempel, Slot-Beginn
+//    'end'   => int,        // Unix-Zeitstempel, Slot-Ende
+//    'price' => float,      // Bruttopreis in ct/kWh
+//    'basis' => 'endkunde', // dieses Modul liefert immer den vollständigen Endkundenpreis
+//    'netzentgelt' => 'enthalten', // zeitvariable Netzentgelte sind im Preis bereits enthalten
+//    'level' => 'CHEAP'|'NORMAL'|'EXPENSIVE'|null, // optional, null wenn Tibber kein Level liefert
+// ], …]
+```
+
+Liste statt Einzelobjekt (auch bei leerem Ergebnis), damit spätere Erweiterungen die Signatur nicht
+brechen – Konvention wie bei den anderen Modul-Verbund-Verträgen (z. B. `MHUB_GetFunctions`).
+
+**Warum ein eigener Token statt Weiterreichen aus TibberV2:** Ein Personal Access Token
+(`developer.tibber.com`) ist von Haus aus für die Preis-/Verbrauchsdaten der offiziellen API gedacht,
+läuft nicht ab und macht dieses Modul dafür **eigenständig** – ohne stillschweigende Abhängigkeit von
+einer fremden Instanz, deren Wartungszustand man nicht beeinflussen kann.
+
+**Warum der volle Endkundenpreis und kein reiner Spotpreis:** Bei zeitvariablen Netzentgelten
+(z. B. §14a EnWG Modul 3) kann der Unterschied zwischen Netzentgelt-Hoch- und -Niedrigtarif mehrere
+Cent/kWh betragen – für eine Ladeentscheidung oft relevanter als die Spotpreis-Schwankung selbst. Ein
+EMS, das nur den Spotpreis sieht, trifft in solchen Zeitfenstern die falsche Entscheidung (lädt nachts
+zu wenig, meidet die Abendspitze nicht). Deshalb liefert `price` immer den kompletten Preis, den
+Tibber dem Kunden tatsächlich berechnet.
+
+**Einrichtung:** Im Panel „💶 Preiskurve“ den Personal Access Token eintragen, übernehmen, dann
+„Preis-Zuhause-Liste neu laden“ und das Zuhause auswählen, erneut übernehmen. Die Kurve wird danach
+alle 20 Minuten neu abgefragt – häufig genug, um die Preise für den Folgetag zeitnah zu übernehmen,
+sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und 14 Uhr). Die Komfort-Variablen
+„Aktueller Preis“ (€/kWh) und „Aktuelles Preisniveau“ zeigen den jeweils aktuellen Slot fürs schnelle
+Nachsehen, ohne die Funktion aufrufen zu müssen.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 
@@ -317,9 +358,12 @@ Signal – die Geräteansteuerung bleibt in deiner Hand.
 **Brauche ich ein Tibber Pulse / Watty?**
 Nein. Grid Rewards ist unabhängig von der Echtzeit-Verbrauchsmessung.
 
-**Warum nicht der offizielle API-Token?**
+**Warum nicht der offizielle API-Token für Grid Rewards?**
 Der Grid-Rewards-Status ist über die offizielle Tibber-API (Personal Access Token) nicht verfügbar,
-sondern nur über die App-API, die einen App-Login (E-Mail/Passwort) verlangt.
+sondern nur über die App-API, die einen App-Login (E-Mail/Passwort) verlangt. Der Personal Access
+Token kommt trotzdem zum Einsatz – aber nur für die optionale Preiskurve (siehe
+[Preiskurve für preisgetriebene Automationen](#preiskurve-für-preisgetriebene-automationen)), das
+ist ein komplett anderer, unabhängiger Teil des Moduls.
 
 **Steuert das Modul meinen Wechselrichter/Speicher direkt?**
 Nein. Es liefert nur den Status. Die Gerätesteuerung baust du in IP-Symcon selbst, ausgelöst durch die

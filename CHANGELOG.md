@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.1.0
+
+- **Neu: Endkunden-Preiskurve über die offizielle Tibber-API** (Panel „💶 Preiskurve“, komplett
+  optional und unabhängig vom Grid-Rewards-Teil): mit einem Personal Access Token
+  (developer.tibber.com/settings/access-token) liefert das Modul jetzt die öffentliche Funktion
+  `TIBBERGR_GetPriceCurve()` – eine Liste von Zeit-Slots (`start`/`end`/`price`/`basis`/
+  `netzentgelt`/`level`) mit dem vollständigen Tibber-Endkundenpreis, **inklusive** evtl.
+  zeitvariabler Netzentgelte (z. B. §14a-Modul-3-Zeitfenster) – bewusst kein reiner Spotpreis,
+  da genau diese Netzentgelt-Komponente für preisgetriebene Ladeentscheidungen den Unterschied
+  macht. Gedacht als Preisquelle für preisgetriebene Automationen/EMS.
+  - Eigener, separater Zugang (Personal Access Token statt des App-Logins für Grid Rewards) –
+    Personal Access Tokens laufen nicht ab, es ist also kein Token-Refresh nötig.
+  - Neue Komfort-Variablen `Aktueller Preis`/`Aktuelles Preisniveau` fürs schnelle Nachsehen.
+  - Preiskurve wird alle 20 Minuten neu abgefragt, damit die Preise für den Folgetag zeitnah
+    übernommen werden, sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und 14 Uhr).
+  - Deckt weiterhin **nur** die Preiskurve ab – Verbrauch/Live-Messung bleibt bei „Tibber V.2“,
+    um keine Doppelung zu erzeugen (siehe CLAUDE.md, Abschnitt Modul-Verbund).
+
 ## 2.0.0
 
 - **Bedingungs-Regelwerk „Wenn → Dann" ersetzt die alten Automations-Zeilen** (Vorbild/Portierung:

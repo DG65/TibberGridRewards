@@ -10,8 +10,11 @@ declare(strict_types=1);
  * um bei einem aktiven Grid-Reward-Einsatz eigene Geräte zu steuern (z. B. GoodWe-Speicher auf
  * Entladesperre, Wallbox-Last aus dem Netz).
  *
- * Die offizielle Tibber-API (Preise, Verbrauch, Live-Messung/Pulse) wird hiervon NICHT abgedeckt –
- * dafür gibt es das Modul "Tibber V.2" (da8ter/TibberV2).
+ * Zusätzlich (seit 2.1.0, eigenständig von Active/Email/Password): liefert über die OFFIZIELLE
+ * Tibber-API (Personal Access Token) die Endkunden-Preiskurve (GetPriceCurve()) für preisgetriebene
+ * Automationen/EMS – als Endkundenpreis inkl. evtl. zeitvariabler Netzentgelte (z. B. §14a Modul 3),
+ * NICHT nur ein reiner Spotpreis. Verbrauch/Live-Messung/Pulse deckt weiterhin das Modul "Tibber V.2"
+ * (da8ter/TibberV2) ab – bewusst keine Doppelung dort.
  *
  * WS-Anbindung über den IPS-WebSocket-Client als Parent (Muster analog Tibber_Realtime aus TibberV2).
  */
@@ -26,6 +29,9 @@ class TibberGridReward extends IPSModule
     private const AUTH_URL = 'https://app.tibber.com/v1/login.credentials';
     private const GQL_URL  = 'https://app.tibber.com/v4/gql';
     private const WS_URL   = 'wss://app.tibber.com/v4/gql/ws';
+
+    // Offizielle Tibber-API (Personal Access Token, developer.tibber.com) – nur für die Preiskurve
+    private const PRICE_GQL_URL = 'https://api.tibber.com/v1-beta/gql';
 
     public function Create()
     {
@@ -91,6 +97,13 @@ class TibberGridReward extends IPSModule
         // eindeutige Subscription-ID je Instanz
         $this->RegisterPropertyInteger('SubID', rand(1000, 9999));
 
+        // Preiskurve über die offizielle Tibber-API (Personal Access Token) – bewusst unabhängig von
+        // "Active"/Email/Password: läuft auch, wenn Grid Rewards gar nicht genutzt wird.
+        $this->RegisterPropertyString('PriceApiToken', '');
+        $this->RegisterPropertyString('PriceHomeID', '0');
+        $this->RegisterAttributeString('PriceHomes', '');
+        $this->RegisterAttributeString('PriceCache', '{}');
+
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
 
         // Timer
@@ -98,6 +111,9 @@ class TibberGridReward extends IPSModule
         $this->RegisterTimer('StartWatchdog', 0, 'TIBBERGR_StartWatchdog($_IPS[\'TARGET\']);');
         $this->RegisterTimer('ReloginSequence', 0, 'TIBBERGR_ReloginSequence($_IPS[\'TARGET\']);');
         $this->RegisterTimer('EnergyTick', 0, 'TIBBERGR_EnergyTick($_IPS[\'TARGET\']);');
+        // Alle 20 Minuten neu abfragen – häufig genug, um die morgigen Preise (erscheinen meist
+        // zwischen 13 und 14 Uhr) zeitnah zu übernehmen, ohne die Tibber-API unnötig zu belasten.
+        $this->RegisterTimer('PriceRefresh', 0, 'TIBBERGR_PriceRefresh($_IPS[\'TARGET\']);');
     }
 
     public function Destroy()
@@ -125,6 +141,10 @@ class TibberGridReward extends IPSModule
         }
 
         $this->RegisterProfiles();
+
+        // Preiskurve (offizielle API) – bewusst UNABHÄNGIG vom Grid-Rewards-Teil unten: läuft auch,
+        // wenn "Active" aus ist oder keine App-Zugangsdaten hinterlegt sind.
+        $this->ApplyPriceChanges();
 
         if (!$this->ReadPropertyBoolean('Active')) {
             $this->SetTimerInterval('TokenRefresh', 0);
@@ -189,9 +209,25 @@ class TibberGridReward extends IPSModule
             }
         }
 
+        // Preis-Zuhause-Dropdown dynamisch füllen (eigene Home-Liste über die offizielle API, da ein
+        // Personal Access Token andere/mehr Homes sehen kann als der App-Login für Grid Rewards).
+        $priceOptions = [['caption' => $this->Translate('Please select'), 'value' => '0']];
+        $priceHomesRaw = $this->ReadAttributeString('PriceHomes');
+        if ($priceHomesRaw !== '') {
+            $priceHomes = json_decode($priceHomesRaw, true);
+            $priceList = $priceHomes['data']['viewer']['homes'] ?? [];
+            foreach ($priceList as $home) {
+                $caption = $home['appNickname'] ?? ($home['address']['address1'] ?? $home['id']);
+                $priceOptions[] = ['caption' => $caption, 'value' => (string) $home['id']];
+            }
+        }
+
         foreach ($form['elements'] as &$element) {
             if (($element['name'] ?? '') === 'Home_ID') {
                 $element['options'] = $options;
+            }
+            if (($element['name'] ?? '') === 'PriceHomeID') {
+                $element['options'] = $priceOptions;
             }
         }
         unset($element);
@@ -514,6 +550,205 @@ class TibberGridReward extends IPSModule
         }
         $this->WriteAttributeString('Homes', json_encode($result));
         $this->SendDebug(__FUNCTION__, json_encode($result), 0);
+    }
+
+    // ---------------------------------------------------------------------
+    // Offizielle Tibber-API: Endkunden-Preiskurve (Personal Access Token)
+    //
+    // Bewusst eine ZWEITE, unabhängige Anbindung neben der App-API oben: anderes Auth-Verfahren
+    // (Bearer-Token statt E-Mail/Passwort-Login), andere URL, kein Token-Refresh nötig (Personal
+    // Access Tokens laufen nicht ab). Deckt NUR die Preiskurve ab - Verbrauch/Live-Messung bleibt
+    // bei "Tibber V.2", um keine Doppelung zu erzeugen.
+    // ---------------------------------------------------------------------
+
+    /**
+     * Preis-Teil von ApplyChanges(): lädt bei Bedarf die Home-Liste (fürs Dropdown) und startet/stoppt
+     * den Preis-Refresh-Timer. Läuft unabhängig vom Grid-Rewards-Status/-Fehlercode - ein falscher
+     * oder fehlender PriceApiToken darf den Grid-Rewards-Teil nicht beeinflussen und umgekehrt.
+     */
+    private function ApplyPriceChanges(): void
+    {
+        $this->MaintainVariable('CurrentPrice', $this->Translate('Current price'), VARIABLETYPE_FLOAT, 'Tibber.RatePerKWh', 100, true);
+        $this->MaintainVariable('CurrentPriceLevel', $this->Translate('Current price level'), VARIABLETYPE_STRING, '', 101, true);
+
+        $token = $this->ReadPropertyString('PriceApiToken');
+        if ($token === '') {
+            $this->SetTimerInterval('PriceRefresh', 0);
+            return;
+        }
+
+        if ($this->ReadAttributeString('PriceHomes') === '') {
+            $this->FetchPriceHomes();
+        }
+
+        if ($this->ReadPropertyString('PriceHomeID') === '0') {
+            $this->SetTimerInterval('PriceRefresh', 0);
+            return;
+        }
+
+        $this->FetchAndCachePriceCurve();
+        $this->SetTimerInterval('PriceRefresh', 20 * 60 * 1000);
+    }
+
+    /** Button-Aktion: Preis-Zuhause-Liste neu laden (Formular danach neu laden). */
+    public function UpdatePriceHomes(): void
+    {
+        $this->FetchPriceHomes();
+        $this->ReloadForm();
+    }
+
+    private function FetchPriceHomes(): void
+    {
+        $token = $this->ReadPropertyString('PriceApiToken');
+        if ($token === '') {
+            return;
+        }
+        $body = json_encode(['query' => '{ viewer { homes { id appNickname address { address1 } } } }']);
+        $result = $this->HttpPost(self::PRICE_GQL_URL, $body, true, $token);
+        if ($result === null) {
+            $this->SendDebug(__FUNCTION__, 'Abruf der Preis-Zuhause-Liste fehlgeschlagen', 0);
+            return;
+        }
+        $this->WriteAttributeString('PriceHomes', json_encode($result));
+        $this->SendDebug(__FUNCTION__, json_encode($result), 0);
+    }
+
+    /** Timer-Callback: Preiskurve neu abfragen (alle 20 Minuten, siehe Create()). */
+    public function PriceRefresh(): void
+    {
+        if ($this->ReadPropertyString('PriceApiToken') === '' || $this->ReadPropertyString('PriceHomeID') === '0') {
+            return;
+        }
+        $this->FetchAndCachePriceCurve();
+    }
+
+    /**
+     * Fragt die Preiskurve (heute + morgen, sobald verfügbar) für das gewählte Preis-Zuhause ab,
+     * normalisiert sie auf das Verbund-Format und schreibt sie in PriceCache. Aktualisiert außerdem
+     * die Komfort-Variablen CurrentPrice/CurrentPriceLevel aus dem "current"-Slot der Antwort.
+     */
+    private function FetchAndCachePriceCurve(): bool
+    {
+        $token = $this->ReadPropertyString('PriceApiToken');
+        $homeId = $this->ReadPropertyString('PriceHomeID');
+        if ($token === '' || $homeId === '0') {
+            return false;
+        }
+
+        $query = '{ viewer { home(id: "' . $homeId . '") { currentSubscription { priceInfo {'
+            . ' current { total startsAt level }'
+            . ' today { total startsAt level }'
+            . ' tomorrow { total startsAt level }'
+            . ' } } } } }';
+        $result = $this->HttpPost(self::PRICE_GQL_URL, json_encode(['query' => $query]), true, $token);
+        if ($result === null) {
+            $this->SendDebug(__FUNCTION__, 'Preisabfrage fehlgeschlagen', 0);
+            return false;
+        }
+
+        $priceInfo = $result['data']['viewer']['home']['currentSubscription']['priceInfo'] ?? null;
+        if (!is_array($priceInfo)) {
+            $this->SendDebug(__FUNCTION__, 'Keine priceInfo in der Antwort: ' . json_encode($result), 0);
+            return false;
+        }
+
+        $today = is_array($priceInfo['today'] ?? null) ? $priceInfo['today'] : [];
+        $tomorrow = is_array($priceInfo['tomorrow'] ?? null) ? $priceInfo['tomorrow'] : [];
+        $slots = $this->NormalizePriceSlots(array_merge($today, $tomorrow));
+
+        $this->WriteAttributeString('PriceCache', json_encode(['fetchedAt' => time(), 'slots' => $slots]));
+        $this->SendDebug(__FUNCTION__, count($slots) . ' Preis-Slots zwischengespeichert', 0);
+
+        $current = $priceInfo['current'] ?? null;
+        if (is_array($current) && isset($current['total'])) {
+            // Komfort-Variable in €/kWh (wie die bestehende Tibber.RatePerKWh-Variable
+            // GridRewardEffectiveRate) - der Vertrag GetPriceCurve() liefert weiterhin ct/kWh.
+            $this->SetValueIfExists('CurrentPrice', round((float) $current['total'], 3));
+            $this->SetValueIfExists('CurrentPriceLevel', (string) ($this->MapPriceLevel((string) ($current['level'] ?? '')) ?? ''));
+        }
+        return true;
+    }
+
+    /**
+     * Wandelt die rohen Tibber-Preis-Slots (startsAt/total/level je Slot) in das Verbund-Format um:
+     * [{start,end,price,basis,netzentgelt,level}]. "end" wird aus dem Abstand zum jeweils nächsten
+     * Slot berechnet (Tibber liefert je nach Tarif Stunden- oder Viertelstunden-Werte); der letzte
+     * Slot übernimmt die Dauer des vorherigen (Fallback 3600 s, falls nur ein Slot vorliegt).
+     */
+    private function NormalizePriceSlots(array $rawSlots): array
+    {
+        $starts = [];
+        foreach ($rawSlots as $s) {
+            if (!is_array($s) || !isset($s['startsAt'])) {
+                continue;
+            }
+            $starts[] = strtotime((string) $s['startsAt']);
+        }
+
+        $out = [];
+        $lastDuration = 3600;
+        foreach ($rawSlots as $i => $s) {
+            if (!is_array($s) || !isset($s['startsAt'], $s['total'])) {
+                continue;
+            }
+            $start = strtotime((string) $s['startsAt']);
+            $duration = isset($starts[$i + 1]) ? ($starts[$i + 1] - $start) : $lastDuration;
+            if ($duration > 0) {
+                $lastDuration = $duration;
+            }
+            $out[] = [
+                'start'       => $start,
+                'end'         => $start + $duration,
+                'price'       => round(((float) $s['total']) * 100, 2),
+                'basis'       => 'endkunde',
+                'netzentgelt' => 'enthalten',
+                'level'       => $this->MapPriceLevel((string) ($s['level'] ?? '')),
+            ];
+        }
+        return $out;
+    }
+
+    /** Tibbers 5-stufiges Preislevel auf das im Verbund vereinbarte 3-stufige Schema abbilden. */
+    private function MapPriceLevel(string $tibberLevel): ?string
+    {
+        switch ($tibberLevel) {
+            case 'VERY_CHEAP':
+            case 'CHEAP':
+                return 'CHEAP';
+            case 'NORMAL':
+                return 'NORMAL';
+            case 'EXPENSIVE':
+            case 'VERY_EXPENSIVE':
+                return 'EXPENSIVE';
+            default:
+                return null; // Tibber liefert für diesen Slot kein Level (z. B. manche Tarife)
+        }
+    }
+
+    /**
+     * Öffentlicher Vertrag für preisgetriebene Automationen/EMS: Endkunden-Preiskurve (heute + morgen,
+     * sobald von Tibber veröffentlicht) als Liste von Zeit-Slots, Konvention wie MHUB_GetFunctions
+     * (Liste statt Einzelobjekt, auch bei leerem/einzelnem Ergebnis).
+     *
+     * Rückgabe je Slot: ['start'=>int Unix, 'end'=>int Unix, 'price'=>float ct/kWh brutto,
+     * 'basis'=>'endkunde', 'netzentgelt'=>'enthalten', 'level'=>'CHEAP'|'NORMAL'|'EXPENSIVE'|null].
+     *
+     * 'basis'/'netzentgelt' sind konstant, weil dieses Modul ausschließlich den vollständigen
+     * Tibber-Endkundenpreis liefert (inkl. evtl. zeitvariabler Netzentgelte wie §14a Modul 3) -
+     * nie einen reinen Spotpreis. Ist der Cache leer (frisch angelegte Instanz, noch kein Timer
+     * gelaufen), wird einmalig synchron nachgeladen, damit der erste Aufruf nicht leer zurückkommt.
+     */
+    public function GetPriceCurve(): array
+    {
+        if ($this->ReadPropertyString('PriceApiToken') === '' || $this->ReadPropertyString('PriceHomeID') === '0') {
+            return [];
+        }
+        $cache = json_decode($this->ReadAttributeString('PriceCache'), true);
+        if (!is_array($cache) || (int) ($cache['fetchedAt'] ?? 0) === 0) {
+            $this->FetchAndCachePriceCurve();
+            $cache = json_decode($this->ReadAttributeString('PriceCache'), true);
+        }
+        return is_array($cache['slots'] ?? null) ? $cache['slots'] : [];
     }
 
     // ---------------------------------------------------------------------
@@ -1790,11 +2025,11 @@ class TibberGridReward extends IPSModule
     /**
      * @return array|null dekodierte JSON-Antwort oder null bei Fehler
      */
-    private function HttpPost(string $url, string $body, bool $auth): ?array
+    private function HttpPost(string $url, string $body, bool $auth, ?string $token = null): ?array
     {
         $headers = ['Content-Type: application/json', 'Accept: application/json'];
         if ($auth) {
-            $headers[] = 'Authorization: Bearer ' . $this->ReadAttributeString('JWT');
+            $headers[] = 'Authorization: Bearer ' . ($token ?? $this->ReadAttributeString('JWT'));
         }
 
         $ch = curl_init();
