@@ -343,6 +343,13 @@ geführt. Beides ist kein Detail: Würde der Preis nur im 20-Minuten-Raster der 
 nachgezogen, läge der Wechsel im Archiv um bis zu 20 Minuten daneben; eine Rundung auf 3 Stellen
 entspräche bereits rund 0,3 ct/kWh Abweichung.
 
+**Ohne dieses Häkchen gibt es keinen Preis-Rückblick.** `TIBBERGR_GetPriceCurve()` liefert bewusst nur
+heute und morgen; alles Vergangene kommt aus dem Archiv. Das betrifft nicht nur die Rechnungsprüfung,
+sondern auch die historische Preiskurve in Auswertungen und Kacheln anderer Module (z. B. dem
+Monitoring von [InverterHub](https://github.com/DG65/InverterHub), das den Rückblick aus dieser
+archivierten Variable zeichnet und die Vorschau aus der Funktion). Aufgezeichnet wird **ab dem Setzen
+des Häkchens** – rückwirkend gibt es keine Daten.
+
 > **Hinweis:** Das Häkchen schaltet die Archivierung nur **ein**. Wird es wieder entfernt, bleibt eine
 > bereits laufende Archivierung bestehen – andernfalls würde die Aufzeichnung stillschweigend abreißen.
 > Zum Abschalten die Archivierung direkt an der Variable entfernen.

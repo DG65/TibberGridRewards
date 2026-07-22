@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.2.1
+
+- Deutlicherer Hinweis am Häkchen „Preisverlauf archivieren“: Ohne Archivierung gibt es **keinen
+  Preis-Rückblick** – `GetPriceCurve()` liefert nur heute und morgen, jede Auswertung der
+  Vergangenheit speist sich aus dem Archiv. Das betrifft neben der Rechnungsprüfung auch die
+  historische Preiskurve in Kacheln anderer Module (etwa dem InverterHub-Monitoring, das den
+  Rückblick aus der archivierten Variable und die Vorschau aus der Funktion zeichnet). Ergänzt, weil
+  ohne gesetztes Häkchen nicht ersichtlich war, warum dort der Verlauf fehlt.
+
 ## 2.2.0
 
 - **Neu: Preisverlauf archivieren** (Häkchen im Panel „💶 Preiskurve“) – aktiviert die Archivierung
