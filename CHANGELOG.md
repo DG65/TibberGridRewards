@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.5
+
+- **Fix: `GetPriceCurve()` konnte bei dauerhaft scheiterndem Abruf die Visualisierung ausbremsen.**
+  Der Zeitstempel im Zwischenspeicher wird nur bei **Erfolg** gesetzt – schlug der Abruf dauerhaft
+  fehl (Netz weg, Zugangsschlüssel ungültig, Störung bei Tibber), löste **jeder** Aufruf der Funktion
+  eine neue synchrone HTTP-Anfrage mit 30 s Zeitlimit aus. Da die Funktion inzwischen von mehreren
+  Modulen aus der Visualisierung heraus aufgerufen wird, fällt das doppelt ins Gewicht. Jetzt wird
+  der **Versuch** festgehalten, nicht nur der Erfolg: höchstens ein Nachladeversuch pro Minute.
+  Der Normalbetrieb (gefüllter Zwischenspeicher) ist unverändert und kommt ohne HTTP-Anfrage aus.
+
 ## 2.2.4
 
 - **Sprachregel fortgeführt:** Anglizismen in Formular- und Dokumentationstexten ersetzt –

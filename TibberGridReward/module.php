@@ -36,6 +36,9 @@ class TibberGridReward extends IPSModule
     // IPS Archive Control – für die optionale Archivierung des Preisverlaufs
     private const ARCHIVE_MODULE = '{43192F0B-135B-4CE7-A0A7-1475603F3060}';
 
+    // Mindestabstand zwischen zwei gescheiterten Nachlade-Versuchen in GetPriceCurve()
+    private const PRICE_RETRY_SECONDS = 60;
+
     public function Create()
     {
         //Never delete this line!
@@ -110,6 +113,8 @@ class TibberGridReward extends IPSModule
         // Hash des Tokens, mit dem die Home-Liste geholt wurde – erkennt einen Token-Wechsel.
         $this->RegisterAttributeString('PriceHomesToken', '');
         $this->RegisterAttributeString('PriceCache', '{}');
+        // Zeitpunkt des letzten Nachlade-VERSUCHS (auch bei Fehlschlag) – drosselt GetPriceCurve().
+        $this->RegisterAttributeInteger('PriceLastTry', 0);
 
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
 
@@ -917,7 +922,19 @@ class TibberGridReward extends IPSModule
         }
         $cache = json_decode($this->ReadAttributeString('PriceCache'), true);
         if (!is_array($cache) || (int) ($cache['fetchedAt'] ?? 0) === 0) {
-            $this->FetchAndCachePriceCurve();
+            // Nachladen bewusst gedrosselt: Der Zeitstempel im Cache wird nur bei ERFOLG gesetzt.
+            // Ohne Drossel würde bei dauerhaft scheiterndem Abruf (Netz weg, Schlüssel ungültig,
+            // Störung bei Tibber) jeder Aufruf eine neue synchrone HTTP-Anfrage mit 30 s Zeitlimit
+            // auslösen - und diese Funktion wird von mehreren Modulen aus der Visualisierung heraus
+            // aufgerufen. Deshalb den VERSUCH festhalten, nicht nur den Erfolg.
+            $lastTry = $this->ReadAttributeInteger('PriceLastTry');
+            if (time() - $lastTry >= self::PRICE_RETRY_SECONDS) {
+                $this->WriteAttributeInteger('PriceLastTry', time());
+                $this->FetchAndCachePriceCurve();
+            } else {
+                $this->SendDebug(__FUNCTION__, 'Nachladen übersprungen (letzter Versuch vor '
+                    . (time() - $lastTry) . ' s gescheitert)', 0);
+            }
         }
         return $this->GetCachedPriceSlots();
     }
