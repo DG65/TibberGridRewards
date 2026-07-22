@@ -486,7 +486,7 @@ class TibberGridReward extends IPSModule
                 break;
 
             case 'error':
-                $this->SendDebug(__FUNCTION__, 'Error: ' . json_encode($payload), 0);
+                $this->SendDebug(__FUNCTION__, 'Fehler: ' . json_encode($payload), 0);
                 break;
 
             case 'complete':
@@ -726,10 +726,30 @@ class TibberGridReward extends IPSModule
             // Variable in €/kWh; der Cache hält ct/kWh. 4 Nachkommastellen, weil eine Rundung auf 3
             // bereits ~0,3 ct/kWh Fehler bedeuten kann - bei einer Rechnungsprüfung nicht egal.
             $this->SetValueIfExists('CurrentPrice', round(((float) $slot['price']) / 100, 4));
-            $this->SetValueIfExists('CurrentPriceLevel', (string) ($slot['level_tibber'] ?? ''));
+            // Anzeige deutsch (Verbund-Sprachregel): 1:1-Beschriftung derselben fünf Tibber-Stufen,
+            // KEINE Zusammenfassung - das Einteilen bleibt Sache des EMS. Der englische Rohwert
+            // bleibt im Vertrag GetPriceCurve() unter 'level_tibber' unverändert erhalten.
+            $this->SetValueIfExists('CurrentPriceLevel', $this->TranslatePriceLevel((string) ($slot['level_tibber'] ?? '')));
             return;
         }
         $this->SendDebug(__FUNCTION__, 'Kein Preis-Slot deckt den aktuellen Zeitpunkt ab', 0);
+    }
+
+    /**
+     * Beschriftet Tibbers Preisstufe für die Anzeige. Bewusst 1:1 (fünf Stufen bleiben fünf Stufen) -
+     * eine Zusammenfassung wäre eine Bewertung, und die trifft im Verbund das EMS. Unbekannte Werte
+     * werden unverändert durchgereicht, damit eine künftige neue Stufe nicht stillschweigend verschwindet.
+     */
+    private function TranslatePriceLevel(string $level): string
+    {
+        switch ($level) {
+            case 'VERY_CHEAP':     return 'sehr günstig';
+            case 'CHEAP':          return 'günstig';
+            case 'NORMAL':         return 'normal';
+            case 'EXPENSIVE':      return 'teuer';
+            case 'VERY_EXPENSIVE': return 'sehr teuer';
+            default:               return $level;
+        }
     }
 
     /** Plant PriceTick auf den nächsten Slot-Beginn (Fallback: in 5 Minuten erneut prüfen). */

@@ -328,7 +328,8 @@ Tibber dem Kunden tatsächlich berechnet.
 nur ein Zuhause, wird es automatisch ausgewählt, sonst unten aus der Liste wählen und erneut
 übernehmen. Die Kurve wird danach alle 20 Minuten neu abgefragt – häufig genug, um die Preise für den
 Folgetag zeitnah zu übernehmen, sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und
-14 Uhr). Die Komfort-Variablen „Aktueller Preis“ (€/kWh) und „Aktuelles Preisniveau (Tibber)“ zeigen
+14 Uhr). Die Komfort-Variablen „Aktueller Preis“ (€/kWh) und „Aktuelles Preisniveau (Tibber)“ – Letztere
+mit deutscher Beschriftung von Tibbers fünf Stufen (sehr günstig … sehr teuer) – zeigen
 den jeweils aktuellen Slot fürs schnelle Nachsehen, ohne die Funktion aufrufen zu müssen.
 
 ### Preisverlauf archivieren (Rechnungsprüfung)

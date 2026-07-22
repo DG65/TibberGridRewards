@@ -81,6 +81,28 @@ gebeten, es weiterzureichen — nicht im fremden Repo selbst gearbeitet.
 zentrale Ansprechpartner für den gesamten Verbund; die übergreifende Koordination läuft über ihn.
 Modul-Sitzungen werden von ihm nur bei modulspezifischen Aufgaben direkt angesprochen.
 
+### Sprachregel: alles Nutzersichtbare auf Deutsch (Anweisung Dietmar, 2026-07-22)
+
+Keine Anglizismen und keine englischen Ausdrücke/Sätze in dem, was der Nutzer zu sehen bekommt:
+Formularbeschriftungen, Hinweis- und Warntexte, Fehler- und Statusmeldungen, Rückgabe-Texte,
+Log-/Debug-Meldungen, Variablen- und Profilnamen, README. Ersetzungen z. B. Dry-Run → Probelauf,
+Link → Verknüpfung, Event → Ereignis, Button → Schaltfläche, Scan → Suche.
+
+**Ausgenommen (Umbenennen bräche Verträge):** Bezeichner im Code (Klassen, Methoden, Properties und
+vor allem **Idents** — Idents sind API und werden nie umbenannt), feststehende IP-Symcon-/
+Technikbegriffe sowie Feldnamen der Gegenstelle. Hier konkret unangetastet:
+
+- die Vertragsfelder von `TIBBERGR_GetPriceCurve` (`start`/`end`/`price`/`basis`/`netzentgelt`/
+  `level`/`level_tibber`) und ein künftiges `GetActiveControls` — Feldnamen englisch,
+  Anzeigetexte deutsch;
+- die Rohwerte der Tibber-API (`Delivering`, `excess`/`shortage`), insbesondere der **Inhalt der
+  Variable `StateReason`**: Der ist ausdrücklich als Rohwert dokumentiert, `DetermineMode()` wertet
+  ihn aus, und Nutzerregeln vergleichen darauf — eine Eindeutschung wäre ein stiller Bruch.
+
+**Wo solche Zustände angezeigt werden, wird deutsch beschriftet.** Umgesetzt: `State` (über
+`Translate()`), das Modus-Band der Kachel, und `CurrentPriceLevel` (`TranslatePriceLevel()`, 1:1 —
+fünf Tibber-Stufen bleiben fünf, das Zusammenfassen/Bewerten bleibt Sache des EMS).
+
 ## Öffentlicher Vertrag: Preiskurve (`TIBBERGR_GetPriceCurve`, seit 2.1.0)
 
 Zweite, von Grid Rewards komplett unabhängige Anbindung: die **offizielle** Tibber-API (Personal

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.2.3
+
+- **Sprachregel umgesetzt (alles Nutzersichtbare auf Deutsch).** Die Variable „Aktuelles Preisniveau“
+  zeigte bisher Tibbers englische Rohwerte (`VERY_CHEAP` … `VERY_EXPENSIVE`); sie ist jetzt deutsch
+  beschriftet (sehr günstig … sehr teuer). Bewusst **1:1** – fünf Stufen bleiben fünf Stufen, das
+  Zusammenfassen und Bewerten bleibt Sache des EMS. Unbekannte künftige Stufen werden unverändert
+  durchgereicht, statt still zu verschwinden.
+- Englische Rückfalltexte der Kachel-Schaltflächen und eine englische Debug-Meldung eingedeutscht.
+- **Unverändert (bewusst):** Der Inhalt der Variable `StateReason` bleibt der Rohwert der Tibber-API
+  (`excess`/`shortage`). Er ist als Rohwert dokumentiert, wird intern ausgewertet und in Nutzerregeln
+  verglichen – eine Eindeutschung wäre ein stiller Bruch bestehender Automationen. Ebenso bleiben die
+  Feldnamen des Vertrags `GetPriceCurve()` und alle Idents englisch (Idents sind API).
+
 ## 2.2.2
 
 - **Neu: Statusanzeige der Archivierung** im Panel „💶 Preiskurve“ – zeigt beim Öffnen des Formulars,

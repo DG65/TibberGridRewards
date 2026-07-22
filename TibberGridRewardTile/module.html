@@ -432,10 +432,10 @@
 
             var simRow = document.getElementById('sim-controls');
             if (data.sim) {
-                document.getElementById('sim-available').textContent = data.simAvailable || 'Available';
-                document.getElementById('sim-excess').textContent = data.simExcess || 'Simulate excess';
-                document.getElementById('sim-shortage').textContent = data.simShortage || 'Simulate shortage';
-                document.getElementById('sim-reset').textContent = data.simReset || 'Reset';
+                document.getElementById('sim-available').textContent = data.simAvailable || 'Verfügbar';
+                document.getElementById('sim-excess').textContent = data.simExcess || 'Laden simulieren';
+                document.getElementById('sim-shortage').textContent = data.simShortage || 'Drosselung simulieren';
+                document.getElementById('sim-reset').textContent = data.simReset || 'Zurück zum echten Status';
                 simRow.style.display = '';
             } else {
                 simRow.style.display = 'none';
