@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.2
+
+- **Neu: Statusanzeige der Archivierung** im Panel „💶 Preiskurve“ – zeigt beim Öffnen des Formulars,
+  ob der Preisverlauf tatsächlich aufgezeichnet wird. Hintergrund: Die Archivierung lässt sich an
+  mehreren Stellen einschalten (Häkchen hier, direkt an der Variable, oder per Knopf in einem
+  Partnermodul wie dem InverterHub-Monitoring). Wurde sie anderswo aktiviert, blieb das Häkchen hier
+  leer – man konnte also nicht erkennen, ob die Aufzeichnung läuft.
+- Hinweistext ergänzt: Die Archivierung lässt sich alternativ **direkt an der Variable** einschalten
+  (Objektbaum → Rechtsklick auf „Aktueller Preis“ → Archivierung). Bisher war nur vom Häkchen die
+  Rede, was die Suche danach an der falschen Stelle nahelegte.
+
 ## 2.2.1
 
 - Deutlicherer Hinweis am Häkchen „Preisverlauf archivieren“: Ohne Archivierung gibt es **keinen

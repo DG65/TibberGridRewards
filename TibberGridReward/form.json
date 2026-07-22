@@ -133,7 +133,12 @@
         },
         {
           "type": "Label",
-          "caption": "Aktiviert die Archivierung der Variable „Aktueller Preis“. Der Preis wird exakt zum Stunden-/Viertelstundenwechsel umgeschaltet, sodass der archivierte Verlauf die Preisstufen zeitgenau abbildet. WICHTIG: Ohne dieses Häkchen gibt es keinen Preis-Rückblick – die Funktion TIBBERGR_GetPriceCurve liefert nur heute und morgen, jede Auswertung der Vergangenheit (Rechnungsprüfung, historische Preiskurve in Kacheln wie dem InverterHub-Monitoring) speist sich aus dem Archiv. Aufgezeichnet wird erst ab dem Setzen des Häkchens, rückwirkend gibt es keine Daten. Das Häkchen schaltet die Archivierung nur EIN – eine selbst gesetzte Archivierung wird beim Entfernen des Häkchens nicht wieder abgeschaltet (sonst ginge die weitere Aufzeichnung stillschweigend verloren)."
+          "name": "ArchiveStatus",
+          "caption": "Status: wird beim Öffnen des Formulars ermittelt."
+        },
+        {
+          "type": "Label",
+          "caption": "Das Häkchen oben aktiviert die Archivierung der Variable „Aktueller Preis“ – dasselbe lässt sich auch direkt an der Variable einschalten (im Objektbaum Rechtsklick auf „Aktueller Preis“ → Archivierung). Der Preis wird exakt zum Stunden-/Viertelstundenwechsel umgeschaltet, sodass der archivierte Verlauf die Preisstufen zeitgenau abbildet. WICHTIG: Ohne Archivierung gibt es keinen Preis-Rückblick – die Funktion TIBBERGR_GetPriceCurve liefert nur heute und morgen, jede Auswertung der Vergangenheit (Rechnungsprüfung, historische Preiskurve in Kacheln wie dem InverterHub-Monitoring) speist sich aus dem Archiv. Aufgezeichnet wird erst ab dem Einschalten, rückwirkend gibt es keine Daten. Das Häkchen schaltet die Archivierung nur EIN – eine anderswo gesetzte Archivierung wird beim Entfernen des Häkchens nicht wieder abgeschaltet (sonst ginge die weitere Aufzeichnung stillschweigend verloren); zum Abschalten die Archivierung direkt an der Variable entfernen."
         }
       ]
     },

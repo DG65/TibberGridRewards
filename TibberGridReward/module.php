@@ -232,6 +232,12 @@ class TibberGridReward extends IPSModule
             $el['caption'] = $lookupText;
         });
 
+        // Tatsächlichen Archivierungszustand anzeigen (rekursiv, das Label liegt im Preis-Panel).
+        $archiveText = $this->GetArchiveStatusText();
+        $this->ReplaceFormElements($form['elements'], ['ArchiveStatus'], function (array &$el) use ($archiveText) {
+            $el['caption'] = $archiveText;
+        });
+
         // "Wenn Datenpunkt"-Spalte der Automationen-Liste mit den verfügbaren Quellen befüllen
         // (verschachtelt in einem ExpansionPanel -> rekursiv patchen).
         $sourceOptions = $this->getAutomationSourceOptions();
@@ -257,6 +263,26 @@ class TibberGridReward extends IPSModule
         $patch($form['elements']);
 
         return json_encode($form);
+    }
+
+    /**
+     * Tatsächlicher Archivierungszustand der Preisvariable als Klartext fürs Formular. Nötig, weil die
+     * Archivierung an mehreren Stellen eingeschaltet werden kann (Häkchen hier, Archivierung direkt an
+     * der Variable, Knopf in einem Partnermodul) - ohne Anzeige wüsste man nie, ob sie nun läuft.
+     */
+    private function GetArchiveStatusText(): string
+    {
+        $vid = @IPS_GetObjectIDByIdent('CurrentPrice', $this->InstanceID);
+        if ($vid === false || $vid <= 0) {
+            return $this->Translate('Status: the "Current price" variable does not exist yet - enter the token and select a home first.');
+        }
+        $archives = IPS_GetInstanceListByModuleID(self::ARCHIVE_MODULE);
+        if (count($archives) === 0) {
+            return $this->Translate('Status: no archive control found - archiving is not possible.');
+        }
+        return AC_GetLoggingStatus((int) $archives[0], $vid)
+            ? $this->Translate('Status: archiving is ACTIVE - the price history is being recorded.')
+            : $this->Translate('Status: archiving is NOT active - no price history is being recorded.');
     }
 
     /** Optionen des Grid-Rewards-Zuhause-Dropdowns aus der zwischengespeicherten App-API-Antwort. */

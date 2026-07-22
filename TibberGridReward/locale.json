@@ -46,7 +46,11 @@
       "Select a variable above, apply, then click \"Show values\".": "Wähle oben eine Variable, übernimm, dann „Werte anzeigen“ klicken.",
       "This variable has no fixed values - enter a number/text directly.": "Diese Variable hat keine festen Werte – Zahl/Text direkt eintragen.",
       "Current price": "Aktueller Preis",
-      "Current price level": "Aktuelles Preisniveau (Tibber)"
+      "Current price level": "Aktuelles Preisniveau (Tibber)",
+      "Status: the \"Current price\" variable does not exist yet - enter the token and select a home first.": "Status: Die Variable „Aktueller Preis“ existiert noch nicht – zuerst Token eintragen und Zuhause wählen.",
+      "Status: no archive control found - archiving is not possible.": "Status: Kein Archive Control im System gefunden – Archivierung nicht möglich.",
+      "Status: archiving is ACTIVE - the price history is being recorded.": "Status: Archivierung ist AKTIV – der Preisverlauf wird aufgezeichnet.",
+      "Status: archiving is NOT active - no price history is being recorded.": "Status: Archivierung ist NICHT aktiv – es entsteht keine Preishistorie."
     }
   }
 }
