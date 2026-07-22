@@ -7,7 +7,7 @@ eigene Automationen auslösen lassen.
 > **Abgrenzung:** Verbrauch/Produktion und Live-Messung (Pulse) über die offizielle Tibber-API werden
 > hier **nicht** abgebildet – dafür gibt es das ausgereifte Modul
 > [Tibber V.2](https://github.com/da8ter/TibberV2). Diese Bibliothek ergänzt es um Grid Rewards
-> **und** – optional, über einen eigenen Personal Access Token – die Endkunden-Preiskurve
+> **und** – optional, über einen eigenen Zugangsschlüssel – die Endkunden-Preiskurve
 > (`TIBBERGR_GetPriceCurve()`, siehe [Preiskurve für preisgetriebene Automationen](#preiskurve-für-preisgetriebene-automationen)).
 
 ---
@@ -62,7 +62,7 @@ Ohne registriertes Flex-Gerät bleibt der Status dauerhaft `Unavailable`.
 - Aktiver Tibber-Vertrag **und Teilnahme an Grid Rewards mit einem unterstützten Gerät**
   (z. B. einem Elektroauto).
 - Zugangsdaten der **Tibber-App** (E-Mail + Passwort). Grid Rewards ist nur über die App-API
-  erreichbar, **nicht** über den offiziellen Personal Access Token.
+  erreichbar, **nicht** über den offiziellen Zugangsschlüssel.
 
 ## Installation
 
@@ -91,12 +91,12 @@ WebSocket-Client als Parent wird automatisch erzeugt). Für die Kachel zusätzli
 | **Aktiv** | Schaltet die Verbindung ein/aus |
 | **Tibber App – E-Mail** | E-Mail-Adresse deines Tibber-Kontos |
 | **Tibber App – Passwort** | Passwort deines Tibber-Kontos |
-| **Zuhause (Home)** | Auswahl des Zuhauses (Dropdown) |
+| **Zuhause (Home)** | Auswahl des Zuhauses (Auswahlliste) |
 
 **Erstkonfiguration:**
 
 1. E-Mail und Passwort eintragen, **Aktiv** anhaken, **Übernehmen**.
-2. Auf **Zuhause-Liste neu laden** klicken – das Dropdown füllt sich mit deinen Tibber-Zuhausen.
+2. Auf **Zuhause-Liste neu laden** klicken – die Auswahlliste füllt sich mit deinen Tibber-Zuhausen.
 3. Das gewünschte Zuhause auswählen und erneut **Übernehmen**.
 
 Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert.
@@ -136,7 +136,7 @@ Datenlogik getrennt ist (ein Kachel-Problem kann die Datenverbindung nicht stör
 Standardmäßig ist der **Hintergrund transparent** und der Text passt sich automatisch dem hellen/dunklen
 IPS-Theme an – die Kachel fügt sich also nahtlos ein. Bei Bedarf lassen sich im Instanzformular **alle
 Farben** (Status, Hintergrund, Boxen, Text), die **Schriftart** und die **Schriftgröße** anpassen; der
-Button **„Farben & Schrift auf Standard zurücksetzen"** stellt alles wieder her. Die Kachel
+Schaltfläche **„Farben & Schrift auf Standard zurücksetzen"** stellt alles wieder her. Die Kachel
 aktualisiert sich automatisch bei jeder Variablenänderung der Quelle.
 
 Ein dauerhaftes **Modus-Band** (feste Kachelhöhe) zeigt den `GridRewardMode`: ausgegraut „Kein Einsatz",
@@ -146,28 +146,28 @@ Drosselungs-Farbe sind eigene Farbwähler.
 > Alle Kachel-Einstellungen liegen ausschließlich beim Modul `TibberGridRewardTile`. Das Datenmodul
 > `TibberGridReward` enthält keine Darstellungs-Optionen mehr.
 
-### Simulations-Buttons auf der Kachel (optional, standardmäßig aus)
+### Simulations-Schaltflächen auf der Kachel (optional, standardmäßig aus)
 
-Im Kachel-Formular lässt sich unter **🧪 Simulations-Buttons auf der Kachel** eine Checkbox aktivieren,
-die direkt auf der Kachel im Webfront vier Buttons einblendet: **Verfügbar**, **Laden simulieren**,
+Im Kachel-Formular lässt sich unter **🧪 Simulations-Schaltflächen auf der Kachel** ein Häkchen setzen,
+das direkt auf der Kachel im Webfront vier Schaltflächen einblendet: **Verfügbar**, **Laden simulieren**,
 **Drosselung simulieren** und **↩ Echter Status**. Sie rufen dieselben `Simulate()`/`ResetSimulation()`-
-Funktionen der verbundenen Datenquelle auf wie die Buttons im Konfigurationsformular – praktisch, um
+Funktionen der verbundenen Datenquelle auf wie die Schaltflächen im Konfigurationsformular – praktisch, um
 die EMS-Verdrahtung zu testen, ohne die Instanzkonfiguration zu öffnen.
 
-> **Achtung:** Diese Buttons lösen echte `RequestAction`-Befehle an die in der Datenquelle
+> **Achtung:** Diese Schaltflächen lösen echte `RequestAction`-Befehle an die in der Datenquelle
 > konfigurierten Automationen aus. Standardmäßig **deaktiviert**, da jeder mit Zugriff auf das
 > Webfront (z. B. Familie, Gäste über eine geteilte Ansicht) sie antippen könnte.
 
 ### Regel-Editor auf der Kachel (optional, standardmäßig aus)
 
-Im Kachel-Formular lässt sich unter **🤖 Automationen anzeigen** eine Checkbox aktivieren, die auf der
+Im Kachel-Formular lässt sich unter **🤖 Automationen anzeigen** ein Häkchen setzen, das auf der
 Kachel selbst die konfigurierten Wenn→Dann-Regeln anzeigt – mit Ein-/Ausschalten und Löschen je Regel
 sowie einem vollständigen Regel-Editor (beliebig viele Bedingungen und Aktionen, mit abhängigen
-Dropdowns für Vergleichs- und Zielwerte).
+Auswahllisten für Vergleichs- und Zielwerte).
 
 > **Achtung:** Über den Editor lassen sich hier direkt die Automationen der Datenquelle anlegen,
 > ändern und löschen – inklusive echter Aktoren wie Speicher-Entladesperre und Wallbox-Steuerung.
-> Standardmäßig **deaktiviert**, aus demselben Grund wie bei den Simulations-Buttons.
+> Standardmäßig **deaktiviert**, aus demselben Grund wie bei den Simulations-Schaltflächen.
 
 ## Wallbox-Leistung & EMS-Übergabe
 
@@ -241,7 +241,7 @@ Es sind **beliebig viele Regeln** erlaubt – braucht dein EMS mehr als zwei Dat
 Übergang, legst du einfach eine weitere Regel mit derselben Bedingung an.
 
 **Werte nachschlagen:** Da jede Regel eine andere Zielvariable mit anderem Profil haben kann,
-unterstützt IP-Symcon hier keinen Dropdown, der sich abhängig von der in derselben Zeile gewählten
+unterstützt IP-Symcon hier keine Auswahlliste, der sich abhängig von der in derselben Zeile gewählten
 Zielvariable anpasst (Listenspalten sind für alle Zeilen einheitlich). Als Ersatz gibt es darunter
 **„🔍 Werte nachschlagen"**: Variable wählen, übernehmen, **„Werte anzeigen"** klicken – darunter
 erscheinen alle möglichen Werte der Zielvariable als Text (z. B. „0 = Gestoppt · 1 = Automatik · …")
@@ -250,7 +250,7 @@ zum Ablesen und Abtippen in Vergleichswert/Wert 1/2.
 **Komfortabler Regel-Editor in der Kachel:** Die Kachel `TibberGridRewardTile` bietet unter
 **🤖 Automationen anzeigen** (standardmäßig **deaktiviert**, siehe Warnhinweis dort) einen
 interaktiven Editor direkt im Webfront – mit **beliebig vielen UND-verknüpften Bedingungen** und
-**beliebig vielen Aktionen** (bis 6) je Regel, jeweils mit echten, voneinander unabhängigen Dropdowns
+**beliebig vielen Aktionen** (bis 6) je Regel, jeweils mit echten, voneinander unabhängigen Auswahllisten
 für Vergleichs- und Zielwerte (dort, wo die jeweilige Variable feste Werte hat). Regeln lassen sich
 dort auch direkt ein-/ausschalten und löschen, ohne die Instanzkonfiguration zu öffnen. Das deckt auch
 komplexere, dynamische Logik ab, für die im klassischen Formular mehrere Zeilen mit unterschiedlichen
@@ -285,7 +285,8 @@ Stunde, für die du sie aufhebst) vs. Netzpreis − Grid-Reward.
 ## Preiskurve für preisgetriebene Automationen
 
 Optional und **komplett unabhängig** vom Grid-Rewards-Teil oben: Mit einem eigenen
-[Personal Access Token](https://developer.tibber.com/settings/access-token) liefert das Modul über
+[Zugangsschlüssel](https://developer.tibber.com/settings/access-token) – bei Tibber „Personal
+Access Token“ genannt – liefert das Modul über
 die **offizielle** Tibber-API die Endkunden-Preiskurve als öffentliche Funktion:
 
 ```php
@@ -312,7 +313,7 @@ Einstufung ist deshalb bewusst Sache des EMS, einheitlich für alle Preisquellen
 Tibbers eigene, unveränderte Einstufung bleibt trotzdem verfügbar, aber klar getrennt in
 `level_tibber`.
 
-**Warum ein eigener Token statt Weiterreichen aus TibberV2:** Ein Personal Access Token
+**Warum ein eigener Zugangsschlüssel statt Weiterreichen aus TibberV2:** Ein solcher Schlüssel
 (`developer.tibber.com`) ist von Haus aus für die Preis-/Verbrauchsdaten der offiziellen API gedacht,
 läuft nicht ab und macht dieses Modul dafür **eigenständig** – ohne stillschweigende Abhängigkeit von
 einer fremden Instanz, deren Wartungszustand man nicht beeinflussen kann.
@@ -324,7 +325,7 @@ EMS, das nur den Spotpreis sieht, trifft in solchen Zeitfenstern die falsche Ent
 zu wenig, meidet die Abendspitze nicht). Deshalb liefert `price` immer den kompletten Preis, den
 Tibber dem Kunden tatsächlich berechnet.
 
-**Einrichtung:** Im Panel „💶 Preiskurve“ den Personal Access Token eintragen und übernehmen – gibt es
+**Einrichtung:** Im Panel „💶 Preiskurve“ den Zugangsschlüssel eintragen und übernehmen – gibt es
 nur ein Zuhause, wird es automatisch ausgewählt, sonst unten aus der Liste wählen und erneut
 übernehmen. Die Kurve wird danach alle 20 Minuten neu abgefragt – häufig genug, um die Preise für den
 Folgetag zeitnah zu übernehmen, sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und
@@ -397,7 +398,7 @@ Signal – die Geräteansteuerung bleibt in deiner Hand.
 Nein. Grid Rewards ist unabhängig von der Echtzeit-Verbrauchsmessung.
 
 **Warum nicht der offizielle API-Token für Grid Rewards?**
-Der Grid-Rewards-Status ist über die offizielle Tibber-API (Personal Access Token) nicht verfügbar,
+Der Grid-Rewards-Status ist über die offizielle Tibber-API (Zugangsschlüssel) nicht verfügbar,
 sondern nur über die App-API, die einen App-Login (E-Mail/Passwort) verlangt. Der Personal Access
 Token kommt trotzdem zum Einsatz – aber nur für die optionale Preiskurve (siehe
 [Preiskurve für preisgetriebene Automationen](#preiskurve-für-preisgetriebene-automationen)), das
@@ -421,7 +422,7 @@ registriertes Flex-Gerät entsteht kein `Delivering`-Signal.
 ## Simulation ohne echten Einsatz
 
 Echte Grid-Reward-Einsätze sind oft selten und unvorhersehbar – zum Testen der eigenen EMS-Verdrahtung
-gibt es im Formular unter **🧪 Simulation** drei Buttons: **Verfügbar**, **Laden simulieren (excess)**
+gibt es im Formular unter **🧪 Simulation** drei Schaltflächen: **Verfügbar**, **Laden simulieren (excess)**
 und **Drosselung simulieren (shortage)**. Sie durchlaufen exakt denselben Code wie ein echtes
 Tibber-Ereignis – Modusbestimmung, Energiezählung, Einsatz-Log **und** die konfigurierten Automationen
 („🎯 Automationen (Wenn → Dann)"). So lässt sich die komplette Kette prüfen, ohne auf einen
@@ -432,7 +433,7 @@ echten Einsatz zu warten.
 > echter Funktionstest –, aber kein rein passives „Anschauen".
 
 Die Simulation bleibt so lange bestehen, bis entweder der nächste echte Tibber-Push eintrifft oder du
-auf **„↩ Zurück zum echten Status"** klickst. Dieser Button zeigt sofort den zuletzt bekannten echten
+auf **„↩ Zurück zum echten Status"** klickst. Diese Schaltfläche zeigt sofort den zuletzt bekannten echten
 (nicht simulierten) Status als Näherung – und fordert zusätzlich **aktiv einen frischen Status direkt
 von Tibber an** (die laufende Subscription wird ab- und sofort wieder angemeldet). Der frische Push
 kommt umgehend als normales Update herein und überschreibt die Näherung automatisch, falls sich der

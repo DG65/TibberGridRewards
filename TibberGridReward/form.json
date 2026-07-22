@@ -51,7 +51,7 @@
         },
         {
           "type": "Label",
-          "caption": "Panel „🧪 Simulation“: Über die Buttons lässt sich jeder der drei Zustände (Verfügbar/Laden/Drosselung) auslösen und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten Automationen. „↩ Zurück zum echten Status“ beendet die Simulation und holt aktiv den aktuellen echten Stand von Tibber."
+          "caption": "Panel „🧪 Simulation“: Über die Schaltflächen lässt sich jeder der drei Zustände (Verfügbar/Laden/Drosselung) auslösen und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten Automationen. „↩ Zurück zum echten Status“ beendet die Simulation und holt aktiv den aktuellen echten Stand von Tibber."
         },
         {
           "type": "Label",
@@ -59,7 +59,7 @@
         },
         {
           "type": "Label",
-          "caption": "Panel „💶 Preiskurve“: Optional, unabhängig von Grid Rewards. Mit einem Personal Access Token (developer.tibber.com/settings/access-token) liefert das Modul den vollständigen Tibber-Endkundenpreis – inklusive evtl. zeitvariabler Netzentgelte (z. B. §14a Modul 3), nicht nur den reinen Spotpreis – als Preiskurve für preisgetriebene Automationen/EMS (Funktion TIBBERGR_GetPriceCurve). Die Komfort-Variablen „Aktueller Preis“/„Aktuelles Preisniveau (Tibber)“ zeigen den jeweils aktuellen Slot; das Preisniveau ist unverändert Tibbers eigene Einstufung, keine allgemeingültige Bewertung – die eigentliche Einstufung für Automationen sollte einheitlich im EMS erfolgen. Die Kurve wird alle 20 Minuten neu abgefragt, damit die Preise für morgen zeitnah übernommen werden, sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und 14 Uhr); der angezeigte Preis selbst wechselt exakt zum Stunden-/Viertelstundenwechsel. Mit dem Häkchen „Preisverlauf archivieren“ entsteht daraus eine lückenlose Preishistorie als Grundlage für eine Rechnungsprüfung."
+          "caption": "Panel „💶 Preiskurve“: Optional, unabhängig von Grid Rewards. Mit einem Zugangsschlüssel (developer.tibber.com/settings/access-token, dort „Personal Access Token“ genannt) liefert das Modul den vollständigen Tibber-Endkundenpreis – inklusive evtl. zeitvariabler Netzentgelte (z. B. §14a Modul 3), nicht nur den reinen Spotpreis – als Preiskurve für preisgetriebene Automationen/EMS (Funktion TIBBERGR_GetPriceCurve). Die Komfort-Variablen „Aktueller Preis“/„Aktuelles Preisniveau (Tibber)“ zeigen den jeweils laufenden Zeitabschnitt; das Preisniveau ist unverändert Tibbers eigene Einstufung, keine allgemeingültige Bewertung – die eigentliche Einstufung für Automationen sollte einheitlich im EMS erfolgen. Die Kurve wird alle 20 Minuten neu abgefragt, damit die Preise für morgen zeitnah übernommen werden, sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und 14 Uhr); der angezeigte Preis selbst wechselt exakt zum Stunden-/Viertelstundenwechsel. Mit dem Häkchen „Preisverlauf archivieren“ entsteht daraus eine lückenlose Preishistorie als Grundlage für eine Rechnungsprüfung."
         },
         {
           "type": "Label",
@@ -103,12 +103,12 @@
       "items": [
         {
           "type": "Label",
-          "caption": "Optional und unabhängig von Grid Rewards oben: liefert den Endkunden-Strompreis (inkl. evtl. zeitvariabler Netzentgelte) als Preiskurve für preisgetriebene Automationen/EMS. Braucht einen Personal Access Token von developer.tibber.com/settings/access-token (eigener Zugang, KEIN App-Passwort)."
+          "caption": "Optional und unabhängig von Grid Rewards oben: liefert den Endkunden-Strompreis (inkl. evtl. zeitvariabler Netzentgelte) als Preiskurve für preisgetriebene Automationen/EMS. Dafür wird ein Zugangsschlüssel von developer.tibber.com/settings/access-token benötigt – dort heißt er „Personal Access Token“. Das ist ein eigener Zugang, NICHT das App-Passwort von oben."
         },
         {
           "type": "PasswordTextBox",
           "name": "PriceApiToken",
-          "caption": "Personal Access Token"
+          "caption": "Zugangsschlüssel (bei Tibber „Personal Access Token“)"
         },
         {
           "type": "Select",
@@ -328,7 +328,7 @@
         },
         {
           "type": "Label",
-          "caption": "🔍 Werte nachschlagen: IP-Symcon-Listen können pro Zeile keinen abhängigen Dropdown anzeigen (jede Zeile kann eine andere Zielvariable mit anderem Profil haben). Wähle hier stattdessen eine Variable, übernimm, und klicke „Werte anzeigen“ – darunter erscheinen alle möglichen Werte zum Ablesen/Abtippen in Vergleichswert/Wert 1/2."
+          "caption": "🔍 Werte nachschlagen: IP-Symcon-Listen können pro Zeile keine abhängige Auswahlliste anzeigen (jede Zeile kann eine andere Zielvariable mit anderem Profil haben). Wähle hier stattdessen eine Variable, übernimm, und klicke „Werte anzeigen“ – darunter erscheinen alle möglichen Werte zum Ablesen/Abtippen in Vergleichswert/Wert 1/2."
         },
         {
           "type": "SelectVariable",
@@ -353,7 +353,7 @@
       "items": [
         {
           "type": "Label",
-          "caption": "Simuliert einen Grid-Reward-Status und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten Automationen (werden also wirklich ausgeführt!) und der Energiezählung. So lässt sich die eigene EMS-Verdrahtung testen, ohne auf einen echten, oft seltenen Einsatz zu warten. Wichtig: Die Simulation bleibt bestehen, bis entweder der nächste echte Tibber-Push kommt oder du unten auf „Zurück zum echten Status“ klickst – das fordert aktiv einen frischen Status direkt von Tibber an, statt nur auf den nächsten Push zu warten."
+          "caption": "Simuliert einen Grid-Reward-Status und durchläuft dabei exakt denselben Code wie ein echtes Tibber-Ereignis – inklusive der oben konfigurierten Automationen (werden also wirklich ausgeführt!) und der Energiezählung. So lässt sich die eigene EMS-Verdrahtung testen, ohne auf einen echten, oft seltenen Einsatz zu warten. Wichtig: Die Simulation bleibt bestehen, bis entweder die nächste echte Statusmeldung von Tibber eintrifft oder du unten auf „Zurück zum echten Status“ klickst – das fordert aktiv einen frischen Status direkt von Tibber an, statt auf die nächste Meldung zu warten."
         },
         {
           "type": "RowLayout",

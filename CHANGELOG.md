@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.2.4
+
+- **Sprachregel fortgeführt:** Anglizismen in Formular- und Dokumentationstexten ersetzt –
+  Button → Schaltfläche, Dropdown → Auswahlliste, Checkbox → Häkchen, Push → Meldung,
+  Slot → Zeitabschnitt. Panel und Häkchen der Kachel heißen entsprechend „Simulations-Schaltflächen“;
+  README und Formular wurden gemeinsam umbenannt, damit die Doku weiter zur Oberfläche passt.
+- **Token → Zugangsschlüssel**, aber mit Originalbezeichnung als Suchhilfe: Das Feld heißt jetzt
+  „Zugangsschlüssel (bei Tibber ‚Personal Access Token‘)“. Rein deutsch benannt würde man auf
+  developer.tibber.com vergeblich nach dem Begriff suchen – dort heißt er wörtlich so.
+- Beim Ersetzen wurde jeweils der Satzbau nachgezogen (Genuswechsel, z. B. „keinen abhängigen
+  Dropdown“ → „keine abhängige Auswahlliste“).
+- Unverändert bleiben Produkt- und Fachbegriffe (Grid Rewards, WebSocket, API, Webfront, Tile) sowie
+  Formularelementtypen im Code.
+
 ## 2.2.3
 
 - **Sprachregel umgesetzt (alles Nutzersichtbare auf Deutsch).** Die Variable „Aktuelles Preisniveau“

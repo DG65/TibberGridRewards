@@ -103,6 +103,20 @@ Technikbegriffe sowie Feldnamen der Gegenstelle. Hier konkret unangetastet:
 `Translate()`), das Modus-Band der Kachel, und `CurrentPriceLevel` (`TranslatePriceLevel()`, 1:1 —
 fünf Tibber-Stufen bleiben fünf, das Zusammenfassen/Bewerten bleibt Sache des EMS).
 
+Zwei Praxishinweise (aus der Umstellung von InverterHub, gelten auch hier):
+
+1. **Nach dem Ersetzen den Diff durchsehen, kein blindes `replace_all`.** Ändert sich das Genus,
+   bricht der Satz: aus „keinen abhängigen Dropdown" wird „**keine abhängige** Auswahlliste", aus
+   „eine Checkbox, **die** …" wird „ein Häkchen, **das** …".
+2. **Fachbegriffe und Produktnamen nicht überdehnen.** Stehen bleiben: „Grid Rewards" (Produktname),
+   WebSocket, API, Webfront, Tile, Modbus. Ersetzt wurden Button → Schaltfläche, Dropdown →
+   Auswahlliste, Checkbox → Häkchen, Push → Meldung, Slot → Zeitabschnitt.
+   **Sonderfall Token:** Im Verbund gilt Token → Zugangsschlüssel. Bei uns heißt das Ding auf
+   Tibbers Website aber wörtlich „Personal Access Token" — wer dort etwas anderes sucht, findet es
+   nicht. Deshalb steht im Formular „Zugangsschlüssel (bei Tibber ‚Personal Access Token')": deutsch
+   zuerst, Originalbezeichnung als Suchhilfe dahinter. Diese Kombination bitte beibehalten.
+3. Formularelementtypen (`"type": "Button"`) sind Code, keine Anzeigetexte — unangetastet lassen.
+
 ## Öffentlicher Vertrag: Preiskurve (`TIBBERGR_GetPriceCurve`, seit 2.1.0)
 
 Zweite, von Grid Rewards komplett unabhängige Anbindung: die **offizielle** Tibber-API (Personal

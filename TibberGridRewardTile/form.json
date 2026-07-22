@@ -19,7 +19,7 @@
         },
         {
           "type": "Label",
-          "caption": "Statusfarben, Flächen-/Text- und Schriftoptionen passen die Kachel an deine Visualisierung an; ohne eigene Angabe folgt die Kachel dem hellen/dunklen Design des Endgeräts. Der Button „Farben & Schrift auf Standard zurücksetzen“ ändert nur das offene Formular – gespeichert wird erst mit „Änderungen übernehmen“."
+          "caption": "Statusfarben, Flächen-/Text- und Schriftoptionen passen die Kachel an deine Visualisierung an; ohne eigene Angabe folgt die Kachel dem hellen/dunklen Design des Endgeräts. Die Schaltfläche „Farben & Schrift auf Standard zurücksetzen“ ändert nur das offene Formular – gespeichert wird erst mit „Änderungen übernehmen“."
         },
         {
           "type": "Label",
@@ -31,11 +31,11 @@
         },
         {
           "type": "Label",
-          "caption": "── Simulations-Buttons ──"
+          "caption": "── Simulations-Schaltflächen ──"
         },
         {
           "type": "Label",
-          "caption": "Blendet auf der Kachel selbst Buttons ein, mit denen sich Verfügbar/Laden/Drosselung simulieren und die Simulation wieder beenden lässt. ACHTUNG: Löst dabei wirklich die konfigurierten Automationen der Datenquelle aus – daher ebenfalls standardmäßig deaktiviert."
+          "caption": "Blendet auf der Kachel selbst Schaltflächen ein, mit denen sich Verfügbar/Laden/Drosselung simulieren und die Simulation wieder beenden lässt. ACHTUNG: Löst dabei wirklich die konfigurierten Automationen der Datenquelle aus – daher ebenfalls standardmäßig deaktiviert."
         },
         {
           "type": "Label",
@@ -79,16 +79,16 @@
     },
     {
       "type": "ExpansionPanel",
-      "caption": "🧪 Simulations-Buttons auf der Kachel",
+      "caption": "🧪 Simulations-Schaltflächen auf der Kachel",
       "items": [
         {
           "type": "Label",
-          "caption": "Blendet auf der Kachel selbst Buttons ein, mit denen sich Verfügbar/Laden/Drosselung simulieren und die Simulation wieder beenden lässt – ohne die Instanzkonfiguration zu öffnen. ACHTUNG: Löst dabei wirklich die in der Datenquelle konfigurierten EMS-Automationen aus (echte RequestAction-Befehle)! Standardmäßig deaktiviert, da jeder mit Zugriff aufs Webfront die Buttons antippen könnte."
+          "caption": "Blendet auf der Kachel selbst Schaltflächen ein, mit denen sich Verfügbar/Laden/Drosselung simulieren und die Simulation wieder beenden lässt – ohne die Instanzkonfiguration zu öffnen. ACHTUNG: Löst dabei wirklich die in der Datenquelle konfigurierten EMS-Automationen aus (echte RequestAction-Befehle)! Standardmäßig deaktiviert, da jeder mit Zugriff aufs Webfront die Schaltflächen antippen könnte."
         },
         {
           "type": "CheckBox",
           "name": "ShowSimControls",
-          "caption": "Simulations-Buttons auf der Kachel anzeigen"
+          "caption": "Simulations-Schaltflächen auf der Kachel anzeigen"
         }
       ]
     },
@@ -98,7 +98,7 @@
       "items": [
         {
           "type": "Label",
-          "caption": "Zeigt die in der Datenquelle konfigurierten Wenn->Dann-Regeln auf der Kachel an, mit Ein-/Ausschalten je Regel und einem eigenen Regel-Editor (beliebig viele UND-Bedingungen und Aktionen je Regel, inkl. abhängiger Dropdowns für Vergleichs- und Zielwerte). ACHTUNG: Über den Editor lassen sich hier wirklich die EMS-Automationen der Datenquelle anlegen/ändern/löschen – inklusive Aktoren wie GoodWe-Speicher und Wallbox. Standardmäßig deaktiviert, da jeder mit Zugriff aufs Webfront damit reale Aktionen konfigurieren könnte."
+          "caption": "Zeigt die in der Datenquelle konfigurierten Wenn->Dann-Regeln auf der Kachel an, mit Ein-/Ausschalten je Regel und einem eigenen Regel-Editor (beliebig viele UND-Bedingungen und Aktionen je Regel, inkl. abhängiger Auswahllisten für Vergleichs- und Zielwerte). ACHTUNG: Über den Editor lassen sich hier wirklich die EMS-Automationen der Datenquelle anlegen/ändern/löschen – inklusive Aktoren wie GoodWe-Speicher und Wallbox. Standardmäßig deaktiviert, da jeder mit Zugriff aufs Webfront damit reale Aktionen konfigurieren könnte."
         },
         {
           "type": "CheckBox",
