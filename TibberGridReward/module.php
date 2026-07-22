@@ -33,6 +33,9 @@ class TibberGridReward extends IPSModule
     // Offizielle Tibber-API (Personal Access Token, developer.tibber.com) – nur für die Preiskurve
     private const PRICE_GQL_URL = 'https://api.tibber.com/v1-beta/gql';
 
+    // IPS Archive Control – für die optionale Archivierung des Preisverlaufs
+    private const ARCHIVE_MODULE = '{43192F0B-135B-4CE7-A0A7-1475603F3060}';
+
     public function Create()
     {
         //Never delete this line!
@@ -101,6 +104,8 @@ class TibberGridReward extends IPSModule
         // "Active"/Email/Password: läuft auch, wenn Grid Rewards gar nicht genutzt wird.
         $this->RegisterPropertyString('PriceApiToken', '');
         $this->RegisterPropertyString('PriceHomeID', '0');
+        // Archivierung des Preisverlaufs (Grundlage für eine spätere Rechnungsprüfung).
+        $this->RegisterPropertyBoolean('ArchivePrice', false);
         $this->RegisterAttributeString('PriceHomes', '');
         // Hash des Tokens, mit dem die Home-Liste geholt wurde – erkennt einen Token-Wechsel.
         $this->RegisterAttributeString('PriceHomesToken', '');
@@ -116,6 +121,10 @@ class TibberGridReward extends IPSModule
         // Alle 20 Minuten neu abfragen – häufig genug, um die morgigen Preise (erscheinen meist
         // zwischen 13 und 14 Uhr) zeitnah zu übernehmen, ohne die Tibber-API unnötig zu belasten.
         $this->RegisterTimer('PriceRefresh', 0, 'TIBBERGR_PriceRefresh($_IPS[\'TARGET\']);');
+        // Schaltet den aktuellen Preis exakt zum Slot-Wechsel um (aus dem Cache, ohne API-Aufruf).
+        // Eigener Timer, weil das Abfrage-Raster (20 min) sonst den Zeitpunkt des Preiswechsels
+        // verschmieren würde – für eine Rechnungsprüfung ist die exakte Stunde entscheidend.
+        $this->RegisterTimer('PriceTick', 0, 'TIBBERGR_PriceTick($_IPS[\'TARGET\']);');
     }
 
     public function Destroy()
@@ -589,12 +598,14 @@ class TibberGridReward extends IPSModule
      */
     private function ApplyPriceChanges(): bool
     {
-        $this->MaintainVariable('CurrentPrice', $this->Translate('Current price'), VARIABLETYPE_FLOAT, 'Tibber.RatePerKWh', 100, true);
+        $this->MaintainVariable('CurrentPrice', $this->Translate('Current price'), VARIABLETYPE_FLOAT, 'Tibber.PricePerKWh', 100, true);
         $this->MaintainVariable('CurrentPriceLevel', $this->Translate('Current price level'), VARIABLETYPE_STRING, '', 101, true);
+        $this->EnsurePriceArchiving();
 
         $token = $this->ReadPropertyString('PriceApiToken');
         if ($token === '') {
             $this->SetTimerInterval('PriceRefresh', 0);
+            $this->SetTimerInterval('PriceTick', 0);
             return false;
         }
 
@@ -617,6 +628,7 @@ class TibberGridReward extends IPSModule
                 return true;
             }
             $this->SetTimerInterval('PriceRefresh', 0);
+            $this->SetTimerInterval('PriceTick', 0);
             return false;
         }
 
@@ -662,6 +674,87 @@ class TibberGridReward extends IPSModule
     }
 
     /**
+     * Timer-Callback: schaltet den aktuellen Preis exakt zum Slot-Wechsel um und plant sich auf den
+     * nächsten Slot-Beginn. Arbeitet rein aus dem Cache (kein API-Aufruf) - der Preisverlauf für die
+     * kommenden Stunden steht ja bereits fest.
+     */
+    public function PriceTick(): void
+    {
+        $this->ApplyCurrentPriceSlot();
+        $this->ScheduleNextPriceTick();
+    }
+
+    /**
+     * Schreibt den Preis des Slots, der den aktuellen Zeitpunkt abdeckt, in die Komfort-Variablen.
+     * Zeitgenau, damit ein archivierter Verlauf den Preiswechsel auf die Sekunde am Slot-Beginn zeigt
+     * (Voraussetzung für eine belastbare Rechnungsprüfung).
+     */
+    private function ApplyCurrentPriceSlot(): void
+    {
+        $now = time();
+        foreach ($this->GetCachedPriceSlots() as $slot) {
+            // Intervall [start, end) - end ist exklusiv, siehe Vertrag GetPriceCurve()
+            if ($now < (int) $slot['start'] || $now >= (int) $slot['end']) {
+                continue;
+            }
+            // Variable in €/kWh; der Cache hält ct/kWh. 4 Nachkommastellen, weil eine Rundung auf 3
+            // bereits ~0,3 ct/kWh Fehler bedeuten kann - bei einer Rechnungsprüfung nicht egal.
+            $this->SetValueIfExists('CurrentPrice', round(((float) $slot['price']) / 100, 4));
+            $this->SetValueIfExists('CurrentPriceLevel', (string) ($slot['level_tibber'] ?? ''));
+            return;
+        }
+        $this->SendDebug(__FUNCTION__, 'Kein Preis-Slot deckt den aktuellen Zeitpunkt ab', 0);
+    }
+
+    /** Plant PriceTick auf den nächsten Slot-Beginn (Fallback: in 5 Minuten erneut prüfen). */
+    private function ScheduleNextPriceTick(): void
+    {
+        $now = time();
+        $next = 0;
+        foreach ($this->GetCachedPriceSlots() as $slot) {
+            if ((int) $slot['start'] > $now) {
+                $next = (int) $slot['start'];
+                break; // Slots sind aufsteigend sortiert
+            }
+        }
+        // Ohne bekannten Folge-Slot regelmäßig nachsehen; nie länger als eine Stunde warten, damit
+        // sich der Takt nach einem Neustart oder einer Datenlücke von selbst wieder einfängt.
+        $seconds = ($next > $now) ? ($next - $now + 1) : 300;
+        $this->SetTimerInterval('PriceTick', max(5, min($seconds, 3600)) * 1000);
+    }
+
+    /**
+     * Aktiviert bei Bedarf die Archivierung des Preises. Schaltet bewusst NUR ein, nie aus: hat der
+     * Nutzer die Archivierung selbst gesetzt, darf ein deaktiviertes Häkchen sie nicht stillschweigend
+     * wieder entfernen (und damit die bisherige Historie vom weiteren Mitschreiben abschneiden).
+     */
+    private function EnsurePriceArchiving(): void
+    {
+        if (!$this->ReadPropertyBoolean('ArchivePrice')) {
+            return;
+        }
+        $vid = @IPS_GetObjectIDByIdent('CurrentPrice', $this->InstanceID);
+        if ($vid === false || $vid <= 0) {
+            return;
+        }
+        $archives = IPS_GetInstanceListByModuleID(self::ARCHIVE_MODULE);
+        if (count($archives) === 0) {
+            $this->SendDebug(__FUNCTION__, 'Kein Archive Control gefunden - Archivierung nicht möglich', 0);
+            return;
+        }
+        $archive = (int) $archives[0];
+        if (AC_GetLoggingStatus($archive, $vid)) {
+            return; // bereits aktiv
+        }
+        AC_SetLoggingStatus($archive, $vid, true);
+        // 0 = Standard (Mittelwertbildung), NICHT Zähler: ein Preis ist ein Momentanwert, keine
+        // aufsummierte Größe.
+        AC_SetAggregationType($archive, $vid, 0);
+        IPS_ApplyChanges($archive);
+        $this->SendDebug(__FUNCTION__, 'Archivierung für "Aktueller Preis" aktiviert (Variable ' . $vid . ')', 0);
+    }
+
+    /**
      * Fragt die Preiskurve (heute + morgen, sobald verfügbar) für das gewählte Preis-Zuhause ab,
      * normalisiert sie auf das Verbund-Format und schreibt sie in PriceCache. Aktualisiert außerdem
      * die Komfort-Variablen CurrentPrice/CurrentPriceLevel aus dem "current"-Slot der Antwort.
@@ -674,8 +767,10 @@ class TibberGridReward extends IPSModule
             return false;
         }
 
+        // Bewusst ohne das "current"-Feld: der aktuelle Preis wird aus den heutigen Slots abgeleitet
+        // (PriceTick), damit Variable und Vertrag garantiert dieselbe Quelle haben und nicht
+        // auseinanderlaufen können.
         $query = '{ viewer { home(id: "' . $homeId . '") { currentSubscription { priceInfo {'
-            . ' current { total startsAt level }'
             . ' today { total startsAt level }'
             . ' tomorrow { total startsAt level }'
             . ' } } } } }';
@@ -698,15 +793,9 @@ class TibberGridReward extends IPSModule
         $this->WriteAttributeString('PriceCache', json_encode(['fetchedAt' => time(), 'slots' => $slots]));
         $this->SendDebug(__FUNCTION__, count($slots) . ' Preis-Slots zwischengespeichert', 0);
 
-        $current = $priceInfo['current'] ?? null;
-        if (is_array($current) && isset($current['total'])) {
-            // Komfort-Variable in €/kWh (wie die bestehende Tibber.RatePerKWh-Variable
-            // GridRewardEffectiveRate) - der Vertrag GetPriceCurve() liefert weiterhin ct/kWh.
-            $this->SetValueIfExists('CurrentPrice', round((float) $current['total'], 3));
-            // Tibbers eigene Einstufung unverändert anzeigen (kein Nachbau/keine eigene Taxonomie) -
-            // die maßgebliche Einstufung für Automationen trifft das EMS, nicht diese Variable.
-            $this->SetValueIfExists('CurrentPriceLevel', (string) ($current['level'] ?? ''));
-        }
+        // Aktuellen Slot sofort übernehmen und den Takt auf den nächsten Slot-Wechsel setzen.
+        $this->ApplyCurrentPriceSlot();
+        $this->ScheduleNextPriceTick();
         return true;
     }
 
@@ -783,8 +872,14 @@ class TibberGridReward extends IPSModule
         $cache = json_decode($this->ReadAttributeString('PriceCache'), true);
         if (!is_array($cache) || (int) ($cache['fetchedAt'] ?? 0) === 0) {
             $this->FetchAndCachePriceCurve();
-            $cache = json_decode($this->ReadAttributeString('PriceCache'), true);
         }
+        return $this->GetCachedPriceSlots();
+    }
+
+    /** Zwischengespeicherte Preis-Slots (ohne Nachladen) - gemeinsame Basis für Timer und Vertrag. */
+    private function GetCachedPriceSlots(): array
+    {
+        $cache = json_decode($this->ReadAttributeString('PriceCache'), true);
         return is_array($cache['slots'] ?? null) ? $cache['slots'] : [];
     }
 
@@ -1021,6 +1116,14 @@ class TibberGridReward extends IPSModule
             IPS_SetVariableProfileDigits('Tibber.RatePerKWh', 3);
             IPS_SetVariableProfileIcon('Tibber.RatePerKWh', 'Euro');
             IPS_SetVariableProfileText('Tibber.RatePerKWh', '', ' €/kWh');
+        }
+        if (!IPS_VariableProfileExists('Tibber.PricePerKWh')) {
+            IPS_CreateVariableProfile('Tibber.PricePerKWh', VARIABLETYPE_FLOAT);
+            // 4 Nachkommastellen: Tibber liefert den Preis so fein, und bei einer Rechnungsprüfung
+            // schlägt eine Rundung auf 3 Stellen bereits mit rund 0,3 ct/kWh zu Buche.
+            IPS_SetVariableProfileDigits('Tibber.PricePerKWh', 4);
+            IPS_SetVariableProfileIcon('Tibber.PricePerKWh', 'Euro');
+            IPS_SetVariableProfileText('Tibber.PricePerKWh', '', ' €/kWh');
         }
         if (!IPS_VariableProfileExists('Tibber.GridRewardMode')) {
             IPS_CreateVariableProfile('Tibber.GridRewardMode', VARIABLETYPE_INTEGER);

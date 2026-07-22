@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.2.0
+
+- **Neu: Preisverlauf archivieren** (Häkchen im Panel „💶 Preiskurve“) – aktiviert die Archivierung
+  der Variable „Aktueller Preis“ und legt damit die Grundlage für eine spätere **Rechnungsprüfung**.
+  Das Häkchen schaltet die Archivierung nur **ein**; eine selbst gesetzte Archivierung wird beim
+  Entfernen des Häkchens bewusst nicht wieder abgeschaltet, damit die laufende Aufzeichnung nicht
+  stillschweigend abreißt.
+- **Preis wechselt jetzt exakt zum Slot-Wechsel.** Bisher wurde „Aktueller Preis“ nur im
+  20-Minuten-Raster der API-Abfrage aktualisiert – der archivierte Verlauf hätte den Preiswechsel
+  also um bis zu 20 Minuten versetzt gezeigt, was eine Rechnungsprüfung wertlos macht. Ein eigener
+  Timer schaltet den Preis nun sekundengenau zum Stunden- bzw. Viertelstundenwechsel um, rein aus dem
+  Cache und ohne zusätzliche API-Aufrufe.
+- **Genauerer Preis:** eigenes Profil `Tibber.PricePerKWh` mit **4 Nachkommastellen** statt der
+  bisherigen 3 – eine Rundung auf 3 Stellen bedeutet bereits rund 0,3 ct/kWh Abweichung und wäre für
+  eine Rechnungsprüfung nicht brauchbar.
+- Intern: Variable und Vertrag `GetPriceCurve()` leiten den aktuellen Preis jetzt aus **derselben**
+  Quelle (dem Slot-Cache) ab und können nicht mehr auseinanderlaufen; das separat abgefragte
+  `current`-Feld der API entfällt dadurch.
+
 ## 2.1.2
 
 - **Fix: Das Dropdown „Zuhause für die Preiskurve“ blieb dauerhaft leer.** Die Options wurden nur an

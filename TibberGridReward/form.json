@@ -59,7 +59,7 @@
         },
         {
           "type": "Label",
-          "caption": "Panel „💶 Preiskurve“: Optional, unabhängig von Grid Rewards. Mit einem Personal Access Token (developer.tibber.com/settings/access-token) liefert das Modul den vollständigen Tibber-Endkundenpreis – inklusive evtl. zeitvariabler Netzentgelte (z. B. §14a Modul 3), nicht nur den reinen Spotpreis – als Preiskurve für preisgetriebene Automationen/EMS (Funktion TIBBERGR_GetPriceCurve). Die Komfort-Variablen „Aktueller Preis“/„Aktuelles Preisniveau (Tibber)“ zeigen den jeweils aktuellen Slot; das Preisniveau ist unverändert Tibbers eigene Einstufung, keine allgemeingültige Bewertung – die eigentliche Einstufung für Automationen sollte einheitlich im EMS erfolgen. Die Kurve wird alle 20 Minuten neu abgefragt, damit die Preise für morgen zeitnah übernommen werden, sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und 14 Uhr)."
+          "caption": "Panel „💶 Preiskurve“: Optional, unabhängig von Grid Rewards. Mit einem Personal Access Token (developer.tibber.com/settings/access-token) liefert das Modul den vollständigen Tibber-Endkundenpreis – inklusive evtl. zeitvariabler Netzentgelte (z. B. §14a Modul 3), nicht nur den reinen Spotpreis – als Preiskurve für preisgetriebene Automationen/EMS (Funktion TIBBERGR_GetPriceCurve). Die Komfort-Variablen „Aktueller Preis“/„Aktuelles Preisniveau (Tibber)“ zeigen den jeweils aktuellen Slot; das Preisniveau ist unverändert Tibbers eigene Einstufung, keine allgemeingültige Bewertung – die eigentliche Einstufung für Automationen sollte einheitlich im EMS erfolgen. Die Kurve wird alle 20 Minuten neu abgefragt, damit die Preise für morgen zeitnah übernommen werden, sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und 14 Uhr); der angezeigte Preis selbst wechselt exakt zum Stunden-/Viertelstundenwechsel. Mit dem Häkchen „Preisverlauf archivieren“ entsteht daraus eine lückenlose Preishistorie als Grundlage für eine Rechnungsprüfung."
         },
         {
           "type": "Label",
@@ -125,6 +125,15 @@
           "type": "Button",
           "caption": "Preis-Zuhause-Liste neu laden",
           "onClick": "TIBBERGR_UpdatePriceHomes($id);"
+        },
+        {
+          "type": "CheckBox",
+          "name": "ArchivePrice",
+          "caption": "Preisverlauf archivieren (Grundlage für eine Rechnungsprüfung)"
+        },
+        {
+          "type": "Label",
+          "caption": "Aktiviert die Archivierung der Variable „Aktueller Preis“. Der Preis wird exakt zum Stunden-/Viertelstundenwechsel umgeschaltet, sodass der archivierte Verlauf die Preisstufen zeitgenau abbildet. Hinweis: Das Häkchen schaltet die Archivierung nur EIN – eine selbst gesetzte Archivierung wird beim Entfernen des Häkchens nicht wieder abgeschaltet (sonst ginge die weitere Aufzeichnung stillschweigend verloren)."
         }
       ]
     },

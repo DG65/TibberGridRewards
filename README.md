@@ -324,12 +324,32 @@ EMS, das nur den Spotpreis sieht, trifft in solchen Zeitfenstern die falsche Ent
 zu wenig, meidet die Abendspitze nicht). Deshalb liefert `price` immer den kompletten Preis, den
 Tibber dem Kunden tatsächlich berechnet.
 
-**Einrichtung:** Im Panel „💶 Preiskurve“ den Personal Access Token eintragen, übernehmen, dann
-„Preis-Zuhause-Liste neu laden“ und das Zuhause auswählen, erneut übernehmen. Die Kurve wird danach
-alle 20 Minuten neu abgefragt – häufig genug, um die Preise für den Folgetag zeitnah zu übernehmen,
-sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und 14 Uhr). Die Komfort-Variablen
-„Aktueller Preis“ (€/kWh) und „Aktuelles Preisniveau“ zeigen den jeweils aktuellen Slot fürs schnelle
-Nachsehen, ohne die Funktion aufrufen zu müssen.
+**Einrichtung:** Im Panel „💶 Preiskurve“ den Personal Access Token eintragen und übernehmen – gibt es
+nur ein Zuhause, wird es automatisch ausgewählt, sonst unten aus der Liste wählen und erneut
+übernehmen. Die Kurve wird danach alle 20 Minuten neu abgefragt – häufig genug, um die Preise für den
+Folgetag zeitnah zu übernehmen, sobald Tibber sie veröffentlicht (üblicherweise zwischen 13 und
+14 Uhr). Die Komfort-Variablen „Aktueller Preis“ (€/kWh) und „Aktuelles Preisniveau (Tibber)“ zeigen
+den jeweils aktuellen Slot fürs schnelle Nachsehen, ohne die Funktion aufrufen zu müssen.
+
+### Preisverlauf archivieren (Rechnungsprüfung)
+
+Mit dem Häkchen **„Preisverlauf archivieren“** aktiviert das Modul die Archivierung der Variable
+„Aktueller Preis“ und legt so eine lückenlose Preishistorie an – die Grundlage, um später eine
+Tibber-Rechnung nachzurechnen.
+
+Damit das belastbar ist, wird der Preis **exakt zum Stunden- bzw. Viertelstundenwechsel** umgeschaltet
+(eigener Timer, rein aus dem Cache, ohne zusätzliche API-Aufrufe) und mit **4 Nachkommastellen**
+geführt. Beides ist kein Detail: Würde der Preis nur im 20-Minuten-Raster der API-Abfrage
+nachgezogen, läge der Wechsel im Archiv um bis zu 20 Minuten daneben; eine Rundung auf 3 Stellen
+entspräche bereits rund 0,3 ct/kWh Abweichung.
+
+> **Hinweis:** Das Häkchen schaltet die Archivierung nur **ein**. Wird es wieder entfernt, bleibt eine
+> bereits laufende Archivierung bestehen – andernfalls würde die Aufzeichnung stillschweigend abreißen.
+> Zum Abschalten die Archivierung direkt an der Variable entfernen.
+
+> **Was noch fehlt:** Für eine vollständige Rechnungsprüfung braucht es neben dem Preis auch den
+> **Verbrauch je Zeitscheibe**. Den liefert dieses Modul nicht – er kommt aus dem Zähler
+> (MeterHub) bzw. aus „Tibber V.2“. Dieses Modul stellt die Preisseite bereit.
 
 ## Anwendungsbeispiel: Speicher & Wallbox steuern
 
