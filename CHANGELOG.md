@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.2
+
+- **Fix: Das Dropdown „Zuhause für die Preiskurve“ blieb dauerhaft leer.** Die Options wurden nur an
+  Elemente der obersten Formularebene verteilt – `PriceHomeID` liegt aber im ExpansionPanel
+  „💶 Preiskurve“ und wurde deshalb nie befüllt (auch nicht nach dem Schließen und Neuöffnen des
+  Formulars). Die Zuweisung läuft jetzt rekursiv, wie bei den übrigen verschachtelten Feldern.
+- **Kein Schließen/Neuöffnen mehr nötig.** Nach dem Übernehmen bzw. „Zuhause-Liste neu laden“ wird das
+  **offene** Formular direkt aktualisiert (`UpdateFormField`) – bisher lief das Befüllen nur beim
+  Öffnen des Formulars, sodass die frisch geladene Liste erst nach einem Neustart des Dialogs
+  auftauchte. Gilt für **beide** Zuhause-Dropdowns (Grid Rewards und Preiskurve).
+- **Gibt es nur ein Zuhause, wird es automatisch ausgewählt** – statt ein Dropdown ohne Alternative
+  bedienen zu müssen.
+- Wechselt der Personal Access Token, wird die Zuhause-Liste automatisch neu geladen (bisher blieb
+  stillschweigend die Liste des alten Tokens stehen).
+
 ## 2.1.1
 
 - **Fix (Modul-Verbund-Review durch MeterHub): `GetPriceCurve()` reicht `level` nicht mehr durch.**
