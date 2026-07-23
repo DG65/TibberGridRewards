@@ -165,9 +165,14 @@ TIBBERGR_GetPriceCurve(int $id): array
   sein** (echte negative Börsenpreise) — nicht „reparieren". Netzgebiets-Werte stehen im Formular,
   bundesweite Sätze (Stromsteuer/Offshore/KWK/§19/MwSt) als Konstanten `TAX_*` im Modul (jährlich
   pflegen, `TAX_STAND`). FIXE Positionen (Netz-Grundpreis, §14a-Reduzierung, Tibber-Grundgebühr)
-  gehören NICHT in `components` (nicht per kWh) — die sind für eine getrennte Monatsrechnung
-  vorgesehen. Live gegen Dietmars Anlage verifiziert: `spot` deckt sich mit `tibberEnergy` auf
-  ~0,01 ct/kWh über alle Tarifstufen; Modell trifft die Juni-Rechnung (90,58 € netto) exakt.
+  gehören NICHT in `components` (nicht per kWh) — sie kommen über `TIBBERGR_GetTariffConfig()` (zweiter
+  Vertrag, seit 2.4.0): fixe Positionen für die Monats-Endabrechnung, jeweils Jahresbetrag + /365-
+  Tageswert, plus `campaigns` (befristete Rabatte, `amountMonth` signiert, `validFrom`/`validUntil` als
+  Unix-Zeitstempel wie start/end, 0 = offen). Die Monats-Endabrechnung baut das **EMS** (multipliziert
+  `components` × geeichte Slot-Energie aus dem Zähler, addiert die fixen Positionen, wendet die §14a-
+  „nicht < 0"-Kappung an — die hängt vom Tages-Netzentgelt ab, das wir nicht kennen). Live gegen
+  Dietmars Anlage verifiziert: `spot` deckt sich mit `tibberEnergy` auf ~0,01 ct/kWh über alle
+  Tarifstufen; Modell trifft die Juni-Rechnung (90,58 € netto) exakt.
 - Läuft unabhängig vom Grid-Rewards-Status: eigene Properties (`PriceApiToken`, `PriceHomeID`), eigene
   Attribute (`PriceHomes`, `PriceCache`), eigener Timer (`PriceRefresh`, alle 20 Minuten — häufig genug,
   um die Preise für den Folgetag zeitnah zu übernehmen, sobald Tibber sie veröffentlicht, üblicherweise

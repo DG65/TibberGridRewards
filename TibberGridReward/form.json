@@ -298,6 +298,48 @@
           "name": "TibberBaseFeeMonth",
           "caption": "Tibber-Grundgebühr (€/Monat)",
           "digits": 2
+        },
+        {
+          "type": "Label",
+          "caption": "Befristete Rabatte/Kampagnen (z. B. „Tibber-Grundgebühr-Rabatt“). Betrag signiert – ein Rabatt ist NEGATIV. „Gültig von/bis“ als YYYY-MM-DD; „bis“ schließt den Tag ein, leer = unbefristet. Nur die im Abrechnungszeitraum aktiven werden angewendet."
+        },
+        {
+          "type": "List",
+          "name": "TariffCampaigns",
+          "caption": "Rabatte/Kampagnen",
+          "rowCount": 3,
+          "add": true,
+          "delete": true,
+          "columns": [
+            {
+              "caption": "Bezeichnung",
+              "name": "Label",
+              "width": "auto",
+              "add": "",
+              "edit": { "type": "ValidationTextBox" }
+            },
+            {
+              "caption": "Betrag (€/Monat, negativ = Rabatt)",
+              "name": "AmountMonth",
+              "width": "200px",
+              "add": 0,
+              "edit": { "type": "NumberSpinner", "digits": 2 }
+            },
+            {
+              "caption": "Gültig von (YYYY-MM-DD, leer = ab Beginn)",
+              "name": "ValidFrom",
+              "width": "220px",
+              "add": "",
+              "edit": { "type": "ValidationTextBox" }
+            },
+            {
+              "caption": "Gültig bis (YYYY-MM-DD, leer = unbefristet)",
+              "name": "ValidUntil",
+              "width": "220px",
+              "add": "",
+              "edit": { "type": "ValidationTextBox" }
+            }
+          ]
         }
       ]
     },

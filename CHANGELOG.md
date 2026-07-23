@@ -25,6 +25,11 @@
     beide auch als /365-Tageswert –, Tibber-Grundgebühr), damit der Konsument (das EMS) die
     Monats-Endabrechnung über einen stabilen Vertrag liest statt über interne Property-Namen. Neues
     Formularfeld „Tibber-Grundgebühr (€/Monat)".
+  - `GetTariffConfig()` zusätzlich um `campaigns` erweitert: befristete Rabatte/Kampagnen (Betrag
+    signiert, negativ = Rabatt; Gültig-von/bis). Dietmars Rechnung enthält den Tibber-Grundgebühr-
+    Rabatt (-5,03 €/Monat bis 30.11.2027), der die Grundgebühr auf null hebt – ohne dieses Feld läge
+    das Modell dort 5,03 € daneben. Vorbelegt mit genau dieser Aktion; das EMS wendet nur die im
+    Abrechnungszeitraum aktiven an. Neue Formularliste „Rabatte/Kampagnen".
 
 ## 2.3.0
 

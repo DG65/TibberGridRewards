@@ -151,6 +151,11 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyBoolean('Paragraph14aEnabled', true);
         $this->RegisterPropertyFloat('Paragraph14aReductionYear', 119.80); // €/a
         $this->RegisterPropertyFloat('TibberBaseFeeMonth', 5.03);          // €/Monat (Tibber-Grundgebühr)
+        // Befristete Rabatte/Kampagnen (Tibber-Tarifartefakt): [{Label,AmountMonth(signiert,neg=Rabatt),
+        // ValidFrom,ValidUntil als "YYYY-MM-DD"}]. Vorbelegt mit der realen Tibber-Grundgebühr-Aktion.
+        $this->RegisterPropertyString('TariffCampaigns', json_encode([
+            ['Label' => 'Tibber-Grundgebühr-Rabatt', 'AmountMonth' => -5.03, 'ValidFrom' => '', 'ValidUntil' => '2027-11-30'],
+        ]));
 
         $this->RegisterAttributeString('PriceHomes', '');
         // Hash des Tokens, mit dem die Home-Liste geholt wurde – erkennt einen Token-Wechsel.
@@ -1066,7 +1071,40 @@ class TibberGridReward extends IPSModule
             'paragraph14aReductionYear' => $this->ReadPropertyFloat('Paragraph14aReductionYear'),
             'paragraph14aReductionDay'  => round($this->ReadPropertyFloat('Paragraph14aReductionYear') / 365, 6),
             'tibberBaseFeeMonth'        => $this->ReadPropertyFloat('TibberBaseFeeMonth'),
+            'campaigns'                 => $this->BuildCampaigns(),
         ];
+    }
+
+    /**
+     * Befristete Rabatte/Kampagnen für die Monatsrechnung. Datumsgrenzen als Unix-Zeitstempel wie
+     * bei GetPriceCurve (start/end): validFrom = 00:00:00 des Von-Tages (inklusiv), validUntil =
+     * 23:59:59 des Bis-Tages (inklusiv, „gültig bis <Datum>" schließt den Tag ein), 0 = unbefristet.
+     * amountMonth ist signiert (negativ = Rabatt). Der Konsument wendet nur die im Abrechnungszeitraum
+     * aktiven an.
+     */
+    private function BuildCampaigns(): array
+    {
+        $raw = json_decode($this->ReadPropertyString('TariffCampaigns'), true);
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $c) {
+            if (!is_array($c)) {
+                continue;
+            }
+            $from = trim((string) ($c['ValidFrom'] ?? ''));
+            $until = trim((string) ($c['ValidUntil'] ?? ''));
+            $fromTs = ($from !== '') ? strtotime($from . ' 00:00:00') : 0;
+            $untilTs = ($until !== '') ? strtotime($until . ' 23:59:59') : 0;
+            $out[] = [
+                'label'       => (string) ($c['Label'] ?? ''),
+                'amountMonth' => round((float) ($c['AmountMonth'] ?? 0), 2),
+                'validFrom'   => is_int($fromTs) ? $fromTs : 0,
+                'validUntil'  => is_int($untilTs) ? $untilTs : 0,
+            ];
+        }
+        return $out;
     }
 
     /**
