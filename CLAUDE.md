@@ -117,6 +117,23 @@ Zwei Praxishinweise (aus der Umstellung von InverterHub, gelten auch hier):
    zuerst, Originalbezeichnung als Suchhilfe dahinter. Diese Kombination bitte beibehalten.
 3. Formularelementtypen (`"type": "Button"`) sind Code, keine Anzeigetexte — unangetastet lassen.
 
+### Emojis: erwünscht, wo sie Nutzen stiften (Entscheidung Dietmar, 2026-07-23)
+
+Kanonischer Wortlaut (Steward: MigrationsHub) — ersetzt jede frühere „keine Emojis"-Regel:
+
+- **Erwünscht, wo sie Nutzen stiften:** (1) als **Panel-Icon** — ein Zeichen am Anfang einer
+  ExpansionPanel-Überschrift (📖🔌📊), Ersatz fürs fehlende `icon`-Feld; (2) als
+  **Status-/Aufmerksamkeitssymbol** (✅❌⚠️💡ℹ️) dort, wo etwas beim Lesen Aufmerksamkeit erfordert
+  oder herausgestellt werden soll (Status, Warnungen, wichtige Hinweise) — sie bringen Fokus und
+  Auflockerung.
+- **Faktenlage:** Kein Symcon-Store-Review hat Emojis je beanstandet; die frühere „keine Emojis"-Regel
+  war präventiv und ist aufgehoben.
+- **Beobachtungsklausel:** Sollte je ein Stable-Review Emojis bemängeln, entscheidet der Verbund neu
+  (Rückfall: gemeinsam emoji-frei).
+
+Konsequenz hier: Unsere bestehenden Emoji-Captions (📖 Doku, 🎨 Statusfarben, 🧾 Tarif & Netzentgelt,
+⚠️/ACHTUNG-Hinweise …) bleiben und sind ausdrücklich erwünscht — kein Ausbau.
+
 ## Öffentlicher Vertrag: Preiskurve (`TIBBERGR_GetPriceCurve`, seit 2.1.0)
 
 Zweite, von Grid Rewards komplett unabhängige Anbindung: die **offizielle** Tibber-API (Personal
