@@ -39,6 +39,15 @@ class TibberGridReward extends IPSModule
     // Mindestabstand zwischen zwei gescheiterten Nachlade-Versuchen in GetPriceCurve()
     private const PRICE_RETRY_SECONDS = 60;
 
+    // Bundesweit gleiche Steuern/Umlagen für die Rechnungsprüfung (ct/kWh netto, Stand Juni 2026).
+    // Jährlich zu pflegen; netzgebietsspezifische Größen stehen dagegen im Instanzformular.
+    private const TAX_STAND        = '2026-06';
+    private const TAX_STROMSTEUER  = 2.05;   // Stromsteuer
+    private const TAX_OFFSHORE     = 0.941;  // Offshore-Netzumlage
+    private const TAX_KWK          = 0.446;  // KWK-Umlage
+    private const TAX_STROMNEV19   = 1.56;   // §19-StromNEV-Umlage
+    private const VAT_PERCENT      = 19.0;   // Mehrwertsteuer
+
     public function Create()
     {
         //Never delete this line!
@@ -111,6 +120,37 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyString('PriceResolution', 'auto');
         // Archivierung des Preisverlaufs (Grundlage für eine spätere Rechnungsprüfung).
         $this->RegisterPropertyBoolean('ArchivePrice', false);
+
+        // Tarif- & Netzentgelt-Zerlegung (Rechnungsprüfung): schaltet die components-Aufschlüsselung
+        // in GetPriceCurve frei. Werte netzgebietsspezifisch (ins Formular), Vorbelegung = Beispiel
+        // E-Werk Netze GmbH (vormals Überlandwerk Mittelbaden) für die Erstinbetriebnahme.
+        $this->RegisterPropertyBoolean('TariffEnabled', false);
+        $this->RegisterPropertyFloat('PriceBeschaffung', 1.81);   // Tibber §4-Aufschlag, ct/kWh netto
+        $this->RegisterPropertyFloat('PriceKonzession', 1.32);    // Konzessionsabgabe, ct/kWh netto
+        // Netzentgelt §14a Modul 3, drei Zeittarif-Stufen (ct/kWh netto)
+        $this->RegisterPropertyFloat('NetzHT', 10.35);
+        $this->RegisterPropertyFloat('NetzST', 7.01);
+        $this->RegisterPropertyFloat('NetzNT', 0.70);
+        // Zeitfenster je Stufe (mehrere je Stufe erlaubt): [{From:"HH:MM",To:"HH:MM",Band:"HT|ST|NT"}]
+        $this->RegisterPropertyString('NetzWindows', json_encode([
+            ['From' => '00:00', 'To' => '06:00', 'Band' => 'NT'],
+            ['From' => '06:00', 'To' => '16:30', 'Band' => 'ST'],
+            ['From' => '16:30', 'To' => '20:30', 'Band' => 'HT'],
+            ['From' => '20:30', 'To' => '00:00', 'Band' => 'ST'],
+        ]));
+        // Modul-3-Gültigkeit je Quartal (Ja/Nein). Gesetzlich mind. 2 von 4; in "Nein"-Quartalen gilt
+        // stattdessen der normale Arbeitspreis (NetzArbeitspreis).
+        $this->RegisterPropertyBoolean('Modul3Q1', true);
+        $this->RegisterPropertyBoolean('Modul3Q2', true);
+        $this->RegisterPropertyBoolean('Modul3Q3', true);
+        $this->RegisterPropertyBoolean('Modul3Q4', true);
+        $this->RegisterPropertyFloat('NetzArbeitspreis', 7.01);   // ct/kWh netto, wenn Modul 3 im Quartal inaktiv
+        // Fixe Positionen (nicht per kWh) – Konfig fürs Formular; fließen NICHT in components, sondern
+        // in eine spätere getrennte Monatsrechnung.
+        $this->RegisterPropertyFloat('NetzGrundpreisYear', 98.00);       // €/a
+        $this->RegisterPropertyBoolean('Paragraph14aEnabled', true);
+        $this->RegisterPropertyFloat('Paragraph14aReductionYear', 119.80); // €/a
+
         $this->RegisterAttributeString('PriceHomes', '');
         // Hash des Tokens, mit dem die Home-Liste geholt wurde – erkennt einen Token-Wechsel.
         $this->RegisterAttributeString('PriceHomesToken', '');
@@ -869,9 +909,11 @@ class TibberGridReward extends IPSModule
     private function QueryPriceInfo(string $token, string $homeId, string $resolution): ?array
     {
         $arg = ($resolution !== '') ? ('(resolution: ' . $resolution . ')') : '';
+        // energy/tax zusätzlich holen: Tibbers eigene Zweiteilung (total = energy + tax) dient in der
+        // Rechnungsprüfung als unabhängiger Kreuzprobe-Anker (siehe GetPriceCurve/tibberEnergy/-Tax).
         $query = '{ viewer { home(id: "' . $homeId . '") { currentSubscription { priceInfo' . $arg . ' {'
-            . ' today { total startsAt level }'
-            . ' tomorrow { total startsAt level }'
+            . ' today { total energy tax startsAt level }'
+            . ' tomorrow { total energy tax startsAt level }'
             . ' } } } } }';
         $result = $this->HttpPost(self::PRICE_GQL_URL, json_encode(['query' => $query]), true, $token);
         if ($result === null || isset($result['errors'])) {
@@ -925,6 +967,10 @@ class TibberGridReward extends IPSModule
                 // bleibt separat in level_tibber erhalten, unverändert und unübersetzt.
                 'level'        => null,
                 'level_tibber' => $tibberLevel !== '' ? $tibberLevel : null,
+                // Tibbers eigene Zweiteilung (roh, ct/kWh) als Kreuzprobe-Anker für die
+                // Rechnungsprüfung - null, wenn die API sie für diesen Slot nicht liefert.
+                'tibberEnergy' => isset($s['energy']) ? round(((float) $s['energy']) * 100, 4) : null,
+                'tibberTax'    => isset($s['tax']) ? round(((float) $s['tax']) * 100, 4) : null,
             ];
         }
         return $out;
@@ -938,6 +984,16 @@ class TibberGridReward extends IPSModule
      * Rückgabe je Slot: ['start'=>int Unix (inklusiv), 'end'=>int Unix (EXKLUSIV, Intervall
      * [start,end)), 'price'=>float ct/kWh brutto inkl. USt., 'basis'=>'endkunde',
      * 'netzentgelt'=>'enthalten', 'level'=>null, 'level_tibber'=>string|null].
+     *
+     * Ist im Formular „Tarif & Netzentgelt" aktiviert, kommen zusätzlich (Rechnungsprüfung):
+     * 'components'=>['spot','beschaffung','netzentgelt','steuernAbgaben'] (alle ct/kWh NETTO),
+     * 'vat'=>float (%), 'tibberEnergy'/'tibberTax'=>float|null (Tibbers eigene Zweiteilung als
+     * unabhängiger Kreuzprobe-Anker). 'components' ist eine REKONSTRUKTION aus der Konfiguration;
+     * 'price' bleibt Tibbers autoritative Zahl. Weichen sie ab, ist das ein Prüfbefund, kein Bug
+     * (gleiche Trennung wie bei 'level'). 'spot' wird als Rest gebildet (price_netto minus alle
+     * bekannten Aufschläge), damit die Summe der components exakt price_netto ergibt; 'spot' kann
+     * dabei NEGATIV sein (echte negative Börsenpreise, z. B. zur Solar-Mittagsspitze) - das ist kein
+     * Fehler. Kreuzprobe: 'spot' deckt sich empirisch fast genau mit Tibbers 'tibberEnergy'.
      *
      * 'basis'/'netzentgelt' sind konstant, weil dieses Modul ausschließlich den vollständigen
      * Tibber-Endkundenpreis liefert (inkl. evtl. zeitvariabler Netzentgelte wie §14a Modul 3) -
@@ -969,7 +1025,106 @@ class TibberGridReward extends IPSModule
                     . (time() - $lastTry) . ' s gescheitert)', 0);
             }
         }
-        return $this->GetCachedPriceSlots();
+
+        $slots = $this->GetCachedPriceSlots();
+        if (!$this->ReadPropertyBoolean('TariffEnabled')) {
+            return $slots;
+        }
+        // Zerlegung je Slot ergänzen (nur wenn im Formular aktiviert). Bewusst zur Abfragezeit
+        // berechnet, nicht im Cache: eine geänderte Netz-Config wirkt so sofort, ohne bei Tibber neu
+        // abzufragen.
+        foreach ($slots as &$slot) {
+            $slot['components'] = $this->ComputePriceComponents($slot);
+            $slot['vat'] = self::VAT_PERCENT;
+        }
+        unset($slot);
+        return $slots;
+    }
+
+    /**
+     * Zerlegt den (brutto) Slot-Preis in die vier Netto-Bestandteile für die Rechnungsprüfung.
+     * netzentgelt und steuernAbgaben sind aus der Config bekannt, spot wird als Rest gebildet, damit
+     * die Summe exakt dem Netto-Preis entspricht. Alle Rückgabewerte ct/kWh netto.
+     */
+    private function ComputePriceComponents(array $slot): array
+    {
+        $vatFactor = 1 + self::VAT_PERCENT / 100;
+        $priceNet = ((float) $slot['price']) / $vatFactor; // price ist brutto ct/kWh
+        $beschaffung = $this->ReadPropertyFloat('PriceBeschaffung');
+        $netzentgelt = $this->NetzentgeltForSlot((int) $slot['start']);
+        $steuernAbgaben = $this->ReadPropertyFloat('PriceKonzession')
+            + self::TAX_STROMSTEUER + self::TAX_OFFSHORE + self::TAX_KWK + self::TAX_STROMNEV19;
+        $spot = $priceNet - $beschaffung - $netzentgelt - $steuernAbgaben;
+
+        return [
+            'spot'           => round($spot, 4),
+            'beschaffung'    => round($beschaffung, 4),
+            'netzentgelt'    => round($netzentgelt, 4),
+            'steuernAbgaben' => round($steuernAbgaben, 4),
+        ];
+    }
+
+    /**
+     * Netzentgelt (ct/kWh netto) für den Zeitpunkt eines Slots: §14a-Modul-3-Zeittarif (HT/ST/NT)
+     * anhand der Zeitfenster, ODER der normale Arbeitspreis, wenn Modul 3 im betreffenden Quartal
+     * nicht gilt. Fällt der Zeitpunkt in kein Fenster (lückenhafte Config), gilt der Arbeitspreis.
+     */
+    private function NetzentgeltForSlot(int $start): float
+    {
+        $quarter = (int) ceil((int) date('n', $start) / 3);
+        if (!$this->ReadPropertyBoolean('Modul3Q' . $quarter)) {
+            return $this->ReadPropertyFloat('NetzArbeitspreis');
+        }
+        $band = $this->BandForTime((int) date('G', $start) * 60 + (int) date('i', $start));
+        switch ($band) {
+            case 'HT': return $this->ReadPropertyFloat('NetzHT');
+            case 'NT': return $this->ReadPropertyFloat('NetzNT');
+            case 'ST': return $this->ReadPropertyFloat('NetzST');
+            default:   return $this->ReadPropertyFloat('NetzArbeitspreis'); // kein Fenster trifft
+        }
+    }
+
+    /**
+     * Bestimmt die Tarifstufe (HT/ST/NT) für eine Uhrzeit (Minuten seit Mitternacht) anhand der
+     * konfigurierten Zeitfenster. Fenster über Mitternacht (From > To bzw. To = 00:00) werden
+     * korrekt behandelt. Rückgabe '' , wenn kein Fenster passt.
+     */
+    private function BandForTime(int $minuteOfDay): string
+    {
+        $windows = json_decode($this->ReadPropertyString('NetzWindows'), true);
+        if (!is_array($windows)) {
+            return '';
+        }
+        foreach ($windows as $w) {
+            if (!is_array($w)) {
+                continue;
+            }
+            $from = $this->TimeToMinutes((string) ($w['From'] ?? ''));
+            $to = $this->TimeToMinutes((string) ($w['To'] ?? ''));
+            if ($from === null || $to === null) {
+                continue;
+            }
+            if ($to === 0) {
+                $to = 1440; // "00:00" als Bis meint Tagesende
+            }
+            $hit = ($from <= $to)
+                ? ($minuteOfDay >= $from && $minuteOfDay < $to)          // normales Fenster
+                : ($minuteOfDay >= $from || $minuteOfDay < $to);        // Fenster über Mitternacht
+            if ($hit) {
+                return (string) ($w['Band'] ?? '');
+            }
+        }
+        return '';
+    }
+
+    /** "HH:MM" -> Minuten seit Mitternacht (0..1440), oder null bei ungültigem Format. */
+    private function TimeToMinutes(string $hhmm): ?int
+    {
+        if (!preg_match('/^(\d{1,2}):(\d{2})$/', trim($hhmm), $m)) {
+            return null;
+        }
+        $min = (int) $m[1] * 60 + (int) $m[2];
+        return ($min >= 0 && $min <= 1440) ? $min : null;
     }
 
     /** Zwischengespeicherte Preis-Slots (ohne Nachladen) - gemeinsame Basis für Timer und Vertrag. */

@@ -131,7 +131,10 @@ TIBBERGR_GetPriceCurve(int $id): array
 // [[ 'start'=>int (inklusiv), 'end'=>int (EXKLUSIV, Intervall [start,end)),
 //    'price'=>float (ct/kWh brutto, NICHT EUR/kWh),
 //    'basis'=>'endkunde', 'netzentgelt'=>'enthalten',
-//    'level'=>null, 'level_tibber'=>string|null ], …]
+//    'level'=>null, 'level_tibber'=>string|null,
+//    // nur wenn Formular "Tarif & Netzentgelt" aktiv (seit 2.4.0):
+//    'components'=>['spot','beschaffung','netzentgelt','steuernAbgaben'] (ct/kWh NETTO),
+//    'vat'=>float (%), 'tibberEnergy'=>float|null, 'tibberTax'=>float|null ], …]
 ```
 
 - **`basis`/`netzentgelt` sind konstant**, weil dieses Modul ausschließlich den vollständigen
@@ -153,6 +156,18 @@ TIBBERGR_GetPriceCurve(int $id): array
   `end` des einen exakt gleich `start` des nächsten. Der letzte Slot übernimmt die Dauer des
   vorherigen (Fallback 3600 s bei nur einem Slot). Abfrage beim Konsumenten also
   `now >= start && now < end`.
+- **`components` (seit 2.4.0, Rechnungsprüfung, EMS-abgestimmt):** Zerlegung des Endkundenpreises in
+  {spot, beschaffung, netzentgelt, steuernAbgaben} (ct/kWh NETTO), plus `vat` (%) und Tibbers rohe
+  Zweiteilung `tibberEnergy`/`tibberTax` als **unabhängige Kreuzprobe-Anker**. Nur vorhanden, wenn im
+  Formular „Tarif & Netzentgelt" aktiviert. Wie bei `level`: `components` ist eine **Rekonstruktion**
+  aus der Config, `price` bleibt Tibbers maßgebliche Zahl — Abweichung = Prüfbefund, kein Bug. `spot`
+  wird als Rest gebildet (Summe der components = price_netto per Konstruktion) und **kann negativ
+  sein** (echte negative Börsenpreise) — nicht „reparieren". Netzgebiets-Werte stehen im Formular,
+  bundesweite Sätze (Stromsteuer/Offshore/KWK/§19/MwSt) als Konstanten `TAX_*` im Modul (jährlich
+  pflegen, `TAX_STAND`). FIXE Positionen (Netz-Grundpreis, §14a-Reduzierung, Tibber-Grundgebühr)
+  gehören NICHT in `components` (nicht per kWh) — die sind für eine getrennte Monatsrechnung
+  vorgesehen. Live gegen Dietmars Anlage verifiziert: `spot` deckt sich mit `tibberEnergy` auf
+  ~0,01 ct/kWh über alle Tarifstufen; Modell trifft die Juni-Rechnung (90,58 € netto) exakt.
 - Läuft unabhängig vom Grid-Rewards-Status: eigene Properties (`PriceApiToken`, `PriceHomeID`), eigene
   Attribute (`PriceHomes`, `PriceCache`), eigener Timer (`PriceRefresh`, alle 20 Minuten — häufig genug,
   um die Preise für den Folgetag zeitnah zu übernehmen, sobald Tibber sie veröffentlicht, üblicherweise

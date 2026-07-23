@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.4.0
+
+- **Neu: Preiszerlegung für die Rechnungsprüfung** (Panel „🧾 Tarif & Netzentgelt“, standardmäßig aus,
+  mit der EMS-Sitzung abgestimmt). Ist sie aktiviert, liefert `TIBBERGR_GetPriceCurve()` je Slot
+  zusätzlich `components` = {spot, beschaffung, netzentgelt, steuernAbgaben} (ct/kWh netto), `vat` (%)
+  sowie Tibbers rohe Zweiteilung `tibberEnergy`/`tibberTax` als unabhängige Kreuzprobe-Anker. Damit
+  lässt sich eine Tibber-Rechnung Slot für Slot nachrechnen.
+  - `components` ist eine **Rekonstruktion** aus der Konfiguration; `price` bleibt Tibbers maßgebliche
+    Zahl (Abweichung = Prüfbefund, gleiche Trennung wie bei `level`). `spot` wird als Rest gebildet,
+    sodass die Summe exakt dem Nettopreis entspricht, und kann negativ sein (echte negative
+    Börsenpreise).
+  - **Netzgebietsspezifische Werte** stehen im Formular: §14a-Modul-3-Sätze (HT/ST/NT), Zeitfenster
+    je Stufe (mehrere erlaubt, auch über Mitternacht), Quartals-Gültigkeit von Modul 3 (Ja/Nein je
+    Quartal, in „Nein“-Quartalen der normale Arbeitspreis), Konzessionsabgabe sowie die fixen
+    Jahresbeträge (Netz-Grundpreis, §14a-Reduzierung) für eine spätere Monatsrechnung. Bundesweite
+    Sätze (Stromsteuer, Umlagen, MwSt) sind zentral im Modul hinterlegt (jährlich pflegbar).
+  - Vorbelegt mit dem Beispiel E-Werk Netze GmbH (vormals Überlandwerk Mittelbaden).
+  - An der Live-Anlage verifiziert: über alle 96 Viertelstunden-Slots summieren die `components` exakt
+    auf den Nettopreis, und der rekonstruierte `spot` deckt sich über alle Tarifstufen mit Tibbers
+    eigenem `tibberEnergy` auf ~0,01 ct/kWh – die unabhängige Bestätigung, dass die Netz-Config stimmt.
+    Das Modell trifft Dietmars echte Juni-2026-Rechnung (90,58 € netto) auf 0,0006 ct/kWh genau.
+
 ## 2.3.0
 
 - **Neu: viertelstündliche Preise** (Panel „💶 Preiskurve“ → „Preisauflösung“, Standard „Automatisch“).

@@ -158,6 +158,145 @@
     },
     {
       "type": "ExpansionPanel",
+      "caption": "🧾 Tarif & Netzentgelt (Rechnungsprüfung)",
+      "items": [
+        {
+          "type": "Label",
+          "caption": "Zerlegt den Tibber-Endkundenpreis in seine Bestandteile (Börsenpreis, Beschaffung, Netzentgelt, Steuern/Abgaben), damit sich eine Tibber-Rechnung nachrechnen lässt. Die Werte hier sind NETZGEBIETSSPEZIFISCH – trag sie aus dem Preisblatt deines Netzbetreibers ein. Die bundesweit gleichen Sätze (Stromsteuer, Umlagen, MwSt) sind im Modul hinterlegt. Vorbelegt ist das Beispiel E-Werk Netze GmbH (vormals Überlandwerk Mittelbaden). Die Aufschlüsselung erscheint als „components“ in TIBBERGR_GetPriceCurve; der Gesamtpreis „price“ bleibt Tibbers maßgebliche Zahl."
+        },
+        {
+          "type": "CheckBox",
+          "name": "TariffEnabled",
+          "caption": "Preiszerlegung aktivieren"
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "PriceBeschaffung",
+          "caption": "Weitere Beschaffungskosten (Tibber §4 AGB, ct/kWh netto)",
+          "digits": 3
+        },
+        {
+          "type": "Label",
+          "caption": "── Netzentgelt §14a Modul 3 (zeitvariabel) ──"
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "NetzHT",
+          "caption": "Hochtarif HT (ct/kWh netto)",
+          "digits": 3
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "NetzST",
+          "caption": "Standardtarif ST (ct/kWh netto)",
+          "digits": 3
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "NetzNT",
+          "caption": "Niedrigtarif NT (ct/kWh netto)",
+          "digits": 3
+        },
+        {
+          "type": "List",
+          "name": "NetzWindows",
+          "caption": "Zeitfenster je Tarifstufe (mehrere je Stufe erlaubt)",
+          "rowCount": 6,
+          "add": true,
+          "delete": true,
+          "columns": [
+            {
+              "caption": "Von (HH:MM)",
+              "name": "From",
+              "width": "120px",
+              "add": "00:00",
+              "edit": { "type": "ValidationTextBox" }
+            },
+            {
+              "caption": "Bis (HH:MM)",
+              "name": "To",
+              "width": "120px",
+              "add": "06:00",
+              "edit": { "type": "ValidationTextBox" }
+            },
+            {
+              "caption": "Stufe",
+              "name": "Band",
+              "width": "auto",
+              "add": "NT",
+              "edit": {
+                "type": "Select",
+                "options": [
+                  { "caption": "Hochtarif (HT)", "value": "HT" },
+                  { "caption": "Standardtarif (ST)", "value": "ST" },
+                  { "caption": "Niedrigtarif (NT)", "value": "NT" }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "Label",
+          "caption": "„Bis 00:00“ meint das Tagesende (24:00). Fenster dürfen über Mitternacht gehen. Fällt eine Uhrzeit in kein Fenster, gilt der Arbeitspreis unten."
+        },
+        {
+          "type": "Label",
+          "caption": "── Modul-3-Gültigkeit je Quartal ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Modul 3 gilt nicht zwingend ganzjährig (gesetzlich mind. 2 von 4 Quartalen, vom Netzbetreiber kalenderjährlich festgelegt). In „Nein“-Quartalen gilt statt der Zeittarife der normale Arbeitspreis."
+        },
+        {
+          "type": "RowLayout",
+          "items": [
+            { "type": "CheckBox", "name": "Modul3Q1", "caption": "Q1 (Jan–Mär)" },
+            { "type": "CheckBox", "name": "Modul3Q2", "caption": "Q2 (Apr–Jun)" },
+            { "type": "CheckBox", "name": "Modul3Q3", "caption": "Q3 (Jul–Sep)" },
+            { "type": "CheckBox", "name": "Modul3Q4", "caption": "Q4 (Okt–Dez)" }
+          ]
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "NetzArbeitspreis",
+          "caption": "Normaler Netz-Arbeitspreis, wenn Modul 3 im Quartal inaktiv (ct/kWh netto)",
+          "digits": 3
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "PriceKonzession",
+          "caption": "Konzessionsabgabe (ct/kWh netto)",
+          "digits": 3
+        },
+        {
+          "type": "Label",
+          "caption": "── Fixe Positionen (nicht per kWh) ──"
+        },
+        {
+          "type": "Label",
+          "caption": "Diese Jahresbeträge fließen NICHT in die per-kWh-Zerlegung, sondern in eine getrennte Monatsrechnung. Als Jahreswert eintragen – das Modul rechnet auf den Tag herunter (/365)."
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "NetzGrundpreisYear",
+          "caption": "Netz-Jahresgrundpreis (€/Jahr)",
+          "digits": 2
+        },
+        {
+          "type": "CheckBox",
+          "name": "Paragraph14aEnabled",
+          "caption": "§14a Modul 1 Reduzierung anwenden (nur für §14a-Teilnehmer)"
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "Paragraph14aReductionYear",
+          "caption": "§14a Modul 1 Reduzierung (€/Jahr)",
+          "digits": 2
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
       "caption": "🔌 Wallboxen (Netzbezug-Berechnung)",
       "items": [
         {

@@ -305,6 +305,29 @@ TIBBERGR_GetPriceCurve(int $InstanzID): array
 Liste statt Einzelobjekt (auch bei leerem Ergebnis), damit spätere Erweiterungen die Signatur nicht
 brechen – Konvention wie bei den anderen Modul-Verbund-Verträgen (z. B. `MHUB_GetFunctions`).
 
+**Preiszerlegung für die Rechnungsprüfung (optional):** Ist im Panel „🧾 Tarif & Netzentgelt“ die
+Zerlegung aktiviert und sind die Netzgebiets-Werte eingetragen, liefert jeder Slot zusätzlich:
+
+```php
+//    'components' => [        // alle ct/kWh NETTO
+//        'spot'           => float,  // Börsenpreis (EPEX), Rest = price_netto − alle Aufschläge; kann negativ sein
+//        'beschaffung'    => float,  // Tibber-Aufschlag §4 AGB
+//        'netzentgelt'    => float,  // §14a Modul 3 nach Uhrzeit+Quartal, sonst Arbeitspreis
+//        'steuernAbgaben' => float,  // Konzession + Stromsteuer + Umlagen
+//    ],
+//    'vat'          => float,        // MwSt in %, z. B. 19
+//    'tibberEnergy' => float|null,   // Tibbers eigene Zweiteilung (roh) als unabhängiger …
+//    'tibberTax'    => float|null,   // … Kreuzprobe-Anker
+```
+
+`components` ist eine **Rekonstruktion** aus der Konfiguration; `price` bleibt Tibbers maßgebliche
+Zahl. Weichen sie ab, ist das ein Prüfbefund (dieselbe Trennung wie bei `level`). Die Summe der
+`components` ergibt per Konstruktion exakt den Nettopreis. An der Live-Anlage bestätigt: Der so
+gebildete `spot` deckt sich über alle Tarifstufen mit Tibbers eigenem `tibberEnergy` auf ~0,01 ct/kWh
+– die unabhängige Kreuzprobe, dass die Netz-Config stimmt. Die **fixen** Positionen (Netz-Grundpreis,
+§14a-Reduzierung, Tibber-Grundgebühr) gehören bewusst **nicht** in `components` – sie sind nicht per
+kWh und fließen in eine getrennte Monatsrechnung.
+
 **Warum `level` immer `null` ist:** `CHEAP`/`NORMAL`/`EXPENSIVE` wäre Tibbers eigenes, aus einem
 gleitenden Mittel berechnetes Vokabular – eine Spotpreis-Quelle hätte das nicht und müsste es
 nachbilden. Träte dasselbe Feld mit zwei verschiedenen Berechnungen auf, könnte ein EMS bei
