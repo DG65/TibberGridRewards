@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.5.0
+
+- **Vertragsversionierung (Verbund-Konvention, SUITE.md im EMS-Repo):** `GetPriceCurve()` und
+  `GetTariffConfig()` liefern jetzt additiv ein `contractVersion` = „Major.Minor“. Kompatibilität nur
+  innerhalb derselben Major; Major nur bei Bruch, Minor bei additiver Erweiterung; fehlend = „1.0“.
+  Stand: `GetPriceCurve` = 1.1 (1.0 Basis-Kurve, 1.1 + components/vat/tibberEnergy/tibberTax),
+  `GetTariffConfig` = 1.1 (1.0 fixe Positionen, 1.1 + campaigns).
+  - Bei `GetPriceCurve` steht `contractVersion` bewusst **je Slot**, nicht als Top-Level-Feld: Die
+    Funktion liefert eine Liste; ein Top-Level-Schlüssel hätte die Iteration der Konsumenten gebrochen
+    (das wäre gerade kein additiver Schritt). Bei `GetTariffConfig` (Map-Rückgabe) als Top-Level-Feld.
+- README-Hinweis „Teil der DG65 Energie-Suite“ mit Link aufs Suite-Manifest (SUITE.md).
+
 ## 2.4.0
 
 - **Neu: Preiszerlegung für die Rechnungsprüfung** (Panel „🧾 Tarif & Netzentgelt“, standardmäßig aus,

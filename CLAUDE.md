@@ -199,6 +199,21 @@ TIBBERGR_GetPriceCurve(int $id): array
 - Signaturänderungen an `GetPriceCurve()` ankündigen (aktuell konsumiert von EMS); interne Umbauten
   (z. B. Cache-Format) sind frei, solange die Rückgabestruktur stabil bleibt.
 
+### Vertragsversionierung (Verbund-Konvention, SUITE.md im EMS-Repo)
+
+Getrennt von der Modul-SemVer trägt **jeder** Vertrag ein additives `contractVersion` = "Major.Minor"
+(String). Kompatibilität nur innerhalb derselben **Major**; Major NUR bei Bruch, Minor bei additiver
+Erweiterung; fehlend = "1.0". Konsumenten prüfen die Mindest-Major, laufen bei Inkompatibilität
+standalone weiter, deaktivieren die Kopplung und melden das **sichtbar**. Konstanten:
+`CONTRACT_PRICECURVE`/`CONTRACT_TARIFFCONFIG` — beim Erhöhen nur diese anfassen.
+
+- `GetPriceCurve` = **1.1** (1.0 Basis-Kurve, 1.1 + `components`/`vat`/`tibberEnergy`/`tibberTax`).
+  **Platzierung: JE SLOT**, nicht als Top-Level-Feld — die Funktion liefert eine Liste, ein
+  Top-Level-Schlüssel bräche die Iteration. Auf leerer Liste fehlt die Version (Konsument liest sie
+  aus einem Slot oder aus `GetTariffConfig`).
+- `GetTariffConfig` = **1.1** (1.0 fixe Positionen, 1.1 + `campaigns`) — Top-Level-Feld (Map-Rückgabe).
+- Ein künftiges `GetActiveControls` bringt `contractVersion` = **"1.0"** von Anfang an mit.
+
 ## Branch-Modell: `beta` ist der aktive Entwicklungszweig
 
 Alle DG65-Modulrepos bekommen einen einheitlichen `beta`-Zweig, damit sich neue Stände ohne

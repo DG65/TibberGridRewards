@@ -4,6 +4,9 @@ IP-Symcon-Bibliothek, die den **Tibber-Grid-Rewards-Status** über die Tibber-Ap
 als Variablen bereitstellt. Kern ist ein handlungsfähiges Signal (`Grid Reward aktiv`), mit dem sich
 eigene Automationen auslösen lassen.
 
+> Teil der **DG65 Energie-Suite** — welche Modulstände zusammenpassen, steht im
+> [Suite-Manifest](https://github.com/DG65/EMS/blob/main/SUITE.md).
+
 > **Abgrenzung:** Verbrauch/Produktion und Live-Messung (Pulse) über die offizielle Tibber-API werden
 > hier **nicht** abgebildet – dafür gibt es das ausgereifte Modul
 > [Tibber V.2](https://github.com/da8ter/TibberV2). Diese Bibliothek ergänzt es um Grid Rewards

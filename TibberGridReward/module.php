@@ -39,6 +39,11 @@ class TibberGridReward extends IPSModule
     // Mindestabstand zwischen zwei gescheiterten Nachlade-Versuchen in GetPriceCurve()
     private const PRICE_RETRY_SECONDS = 60;
 
+    // Vertragsversionen "Major.Minor" (Verbund-Konvention, SUITE.md im EMS-Repo). Kompatibilität nur
+    // innerhalb derselben Major; Major NUR bei Bruch, Minor bei additiver Erweiterung.
+    private const CONTRACT_PRICECURVE   = '1.1'; // 1.0 Basis-Kurve, 1.1 + components/vat/tibberEnergy/tibberTax
+    private const CONTRACT_TARIFFCONFIG = '1.1'; // 1.0 fixe Positionen, 1.1 + campaigns
+
     // Bundesweit gleiche Steuern/Umlagen für die Rechnungsprüfung (ct/kWh netto, Stand Juni 2026).
     // Jährlich zu pflegen; netzgebietsspezifische Größen stehen dagegen im Instanzformular.
     private const TAX_STAND        = '2026-06';
@@ -991,6 +996,9 @@ class TibberGridReward extends IPSModule
      * [start,end)), 'price'=>float ct/kWh brutto inkl. USt., 'basis'=>'endkunde',
      * 'netzentgelt'=>'enthalten', 'level'=>null, 'level_tibber'=>string|null].
      *
+     * Je Slot zusätzlich 'contractVersion'=>string ("Major.Minor", Verbund-Konvention) - bewusst je
+     * Slot statt als Top-Level-Feld, weil die Rückgabe eine Liste ist (Top-Level bräche die Iteration).
+     *
      * Ist im Formular „Tarif & Netzentgelt" aktiviert, kommen zusätzlich (Rechnungsprüfung):
      * 'components'=>['spot','beschaffung','netzentgelt','steuernAbgaben'] (alle ct/kWh NETTO),
      * 'vat'=>float (%), 'tibberEnergy'/'tibberTax'=>float|null (Tibbers eigene Zweiteilung als
@@ -1033,15 +1041,18 @@ class TibberGridReward extends IPSModule
         }
 
         $slots = $this->GetCachedPriceSlots();
-        if (!$this->ReadPropertyBoolean('TariffEnabled')) {
-            return $slots;
-        }
-        // Zerlegung je Slot ergänzen (nur wenn im Formular aktiviert). Bewusst zur Abfragezeit
-        // berechnet, nicht im Cache: eine geänderte Netz-Config wirkt so sofort, ohne bei Tibber neu
-        // abzufragen.
+        $tariff = $this->ReadPropertyBoolean('TariffEnabled');
+        // contractVersion additiv JE SLOT (nicht als Top-Level-Feld): GetPriceCurve liefert eine
+        // Liste, ein Top-Level-Schlüssel bräche die Iteration der Konsumenten. Auf leerer Liste fehlt
+        // die Version - ein Konsument liest sie aus einem beliebigen Slot (oder aus GetTariffConfig).
+        // Zusätzlich (nur wenn Tarifzerlegung aktiv) die components/vat je Slot. Bewusst zur
+        // Abfragezeit, nicht im Cache: geänderte Netz-Config bzw. Version wirkt sofort.
         foreach ($slots as &$slot) {
-            $slot['components'] = $this->ComputePriceComponents($slot);
-            $slot['vat'] = self::VAT_PERCENT;
+            $slot['contractVersion'] = self::CONTRACT_PRICECURVE;
+            if ($tariff) {
+                $slot['components'] = $this->ComputePriceComponents($slot);
+                $slot['vat'] = self::VAT_PERCENT;
+            }
         }
         unset($slot);
         return $slots;
@@ -1061,6 +1072,7 @@ class TibberGridReward extends IPSModule
     public function GetTariffConfig(): array
     {
         return [
+            'contractVersion'           => self::CONTRACT_TARIFFCONFIG,
             'active'                    => $this->ReadPropertyBoolean('TariffEnabled'),
             'vat'                       => self::VAT_PERCENT,
             'taxStand'                  => self::TAX_STAND,
