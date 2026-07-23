@@ -210,7 +210,9 @@ standalone weiter, deaktivieren die Kopplung und melden das **sichtbar**. Konsta
 - `GetPriceCurve` = **1.1** (1.0 Basis-Kurve, 1.1 + `components`/`vat`/`tibberEnergy`/`tibberTax`).
   **Platzierung: JE SLOT**, nicht als Top-Level-Feld — die Funktion liefert eine Liste, ein
   Top-Level-Schlüssel bräche die Iteration. Auf leerer Liste fehlt die Version (Konsument liest sie
-  aus einem Slot oder aus `GetTariffConfig`).
+  aus einem Slot oder aus `GetTariffConfig`). Das ist **kein Tibber-Sonderfall**, sondern die
+  kanonische SUITE.md-Regel für listen-liefernde Verträge (contractVersion in jedem Eintrag, gleicher
+  Wert; kein Umschlag um bestehende Listen) — ebenso bei ChargerHub/HeishaMon/MHUB. Nicht „glattziehen".
 - `GetTariffConfig` = **1.1** (1.0 fixe Positionen, 1.1 + `campaigns`) — Top-Level-Feld (Map-Rückgabe).
 - Ein künftiges `GetActiveControls` bringt `contractVersion` = **"1.0"** von Anfang an mit.
 
