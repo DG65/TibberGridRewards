@@ -107,6 +107,8 @@ class TibberGridReward extends IPSModule
         // "Active"/Email/Password: läuft auch, wenn Grid Rewards gar nicht genutzt wird.
         $this->RegisterPropertyString('PriceApiToken', '');
         $this->RegisterPropertyString('PriceHomeID', '0');
+        // Preisauflösung: 'auto' (viertelstündlich mit Rückfall auf stündlich), 'quarter', 'hourly'.
+        $this->RegisterPropertyString('PriceResolution', 'auto');
         // Archivierung des Preisverlaufs (Grundlage für eine spätere Rechnungsprüfung).
         $this->RegisterPropertyBoolean('ArchivePrice', false);
         $this->RegisterAttributeString('PriceHomes', '');
@@ -808,7 +810,13 @@ class TibberGridReward extends IPSModule
     /**
      * Fragt die Preiskurve (heute + morgen, sobald verfügbar) für das gewählte Preis-Zuhause ab,
      * normalisiert sie auf das Verbund-Format und schreibt sie in PriceCache. Aktualisiert außerdem
-     * die Komfort-Variablen CurrentPrice/CurrentPriceLevel aus dem "current"-Slot der Antwort.
+     * die Komfort-Variablen CurrentPrice/CurrentPriceLevel aus dem passenden Slot.
+     *
+     * Auflösung: Seit dem 1.10.2025 rechnet Tibber in Deutschland viertelstündlich ab, liefert die
+     * feineren Preise aber nur, wenn man sie ausdrücklich anfordert (priceInfo(resolution:
+     * QUARTER_HOURLY)). Standard "auto": zuerst viertelstündlich versuchen, bei leerem Ergebnis auf
+     * stündlich zurückfallen (ältere/andere Tarife liefern nur Stundenwerte). Die Slot-Breite ergibt
+     * sich ohnehin aus end-start, downstream (Timer, Vertrag) muss nichts angepasst werden.
      */
     private function FetchAndCachePriceCurve(): bool
     {
@@ -818,36 +826,61 @@ class TibberGridReward extends IPSModule
             return false;
         }
 
-        // Bewusst ohne das "current"-Feld: der aktuelle Preis wird aus den heutigen Slots abgeleitet
-        // (PriceTick), damit Variable und Vertrag garantiert dieselbe Quelle haben und nicht
-        // auseinanderlaufen können.
-        $query = '{ viewer { home(id: "' . $homeId . '") { currentSubscription { priceInfo {'
-            . ' today { total startsAt level }'
-            . ' tomorrow { total startsAt level }'
-            . ' } } } } }';
-        $result = $this->HttpPost(self::PRICE_GQL_URL, json_encode(['query' => $query]), true, $token);
-        if ($result === null) {
-            $this->SendDebug(__FUNCTION__, 'Preisabfrage fehlgeschlagen', 0);
-            return false;
+        $pref = $this->ReadPropertyString('PriceResolution');
+        $attempts = ($pref === 'hourly') ? [''] : (($pref === 'quarter') ? ['QUARTER_HOURLY'] : ['QUARTER_HOURLY', '']);
+
+        $slots = [];
+        $usedResolution = '';
+        foreach ($attempts as $resolution) {
+            $priceInfo = $this->QueryPriceInfo($token, $homeId, $resolution);
+            if ($priceInfo === null) {
+                continue; // Abfrage fehlgeschlagen (z. B. Auflösung vom Tarif nicht unterstützt) -> nächster Versuch
+            }
+            $today = is_array($priceInfo['today'] ?? null) ? $priceInfo['today'] : [];
+            $tomorrow = is_array($priceInfo['tomorrow'] ?? null) ? $priceInfo['tomorrow'] : [];
+            $candidate = $this->NormalizePriceSlots(array_merge($today, $tomorrow));
+            if (count($candidate) > 0) {
+                $slots = $candidate;
+                $usedResolution = ($resolution === '') ? 'stündlich' : 'viertelstündlich';
+                break;
+            }
         }
 
-        $priceInfo = $result['data']['viewer']['home']['currentSubscription']['priceInfo'] ?? null;
-        if (!is_array($priceInfo)) {
-            $this->SendDebug(__FUNCTION__, 'Keine priceInfo in der Antwort: ' . json_encode($result), 0);
+        if (count($slots) === 0) {
+            $this->SendDebug(__FUNCTION__, 'Keine Preis-Slots erhalten (alle Versuche leer/fehlgeschlagen)', 0);
             return false;
         }
-
-        $today = is_array($priceInfo['today'] ?? null) ? $priceInfo['today'] : [];
-        $tomorrow = is_array($priceInfo['tomorrow'] ?? null) ? $priceInfo['tomorrow'] : [];
-        $slots = $this->NormalizePriceSlots(array_merge($today, $tomorrow));
 
         $this->WriteAttributeString('PriceCache', json_encode(['fetchedAt' => time(), 'slots' => $slots]));
-        $this->SendDebug(__FUNCTION__, count($slots) . ' Preis-Slots zwischengespeichert', 0);
+        $this->SendDebug(__FUNCTION__, count($slots) . ' Preis-Slots zwischengespeichert (' . $usedResolution . ')', 0);
 
         // Aktuellen Slot sofort übernehmen und den Takt auf den nächsten Slot-Wechsel setzen.
         $this->ApplyCurrentPriceSlot();
         $this->ScheduleNextPriceTick();
         return true;
+    }
+
+    /**
+     * Führt eine einzelne priceInfo-Abfrage aus. $resolution = '' -> ohne Auflösungsangabe (Tibbers
+     * Standard, aktuell stündlich); 'QUARTER_HOURLY' -> viertelstündlich. Bewusst ohne das
+     * "current"-Feld: der aktuelle Preis wird aus den Slots abgeleitet (PriceTick), damit Variable
+     * und Vertrag garantiert dieselbe Quelle haben. Rückgabe: priceInfo-Array oder null bei Fehler.
+     */
+    private function QueryPriceInfo(string $token, string $homeId, string $resolution): ?array
+    {
+        $arg = ($resolution !== '') ? ('(resolution: ' . $resolution . ')') : '';
+        $query = '{ viewer { home(id: "' . $homeId . '") { currentSubscription { priceInfo' . $arg . ' {'
+            . ' today { total startsAt level }'
+            . ' tomorrow { total startsAt level }'
+            . ' } } } } }';
+        $result = $this->HttpPost(self::PRICE_GQL_URL, json_encode(['query' => $query]), true, $token);
+        if ($result === null || isset($result['errors'])) {
+            $this->SendDebug(__FUNCTION__, 'Preisabfrage (' . ($resolution ?: 'Standard') . ') fehlgeschlagen: '
+                . json_encode($result['errors'] ?? 'keine Antwort'), 0);
+            return null;
+        }
+        $priceInfo = $result['data']['viewer']['home']['currentSubscription']['priceInfo'] ?? null;
+        return is_array($priceInfo) ? $priceInfo : null;
     }
 
     /**

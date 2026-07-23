@@ -127,6 +127,20 @@
           "onClick": "TIBBERGR_UpdatePriceHomes($id);"
         },
         {
+          "type": "Select",
+          "name": "PriceResolution",
+          "caption": "Preisauflösung",
+          "options": [
+            { "caption": "Automatisch (viertelstündlich, sonst stündlich)", "value": "auto" },
+            { "caption": "Viertelstündlich erzwingen", "value": "quarter" },
+            { "caption": "Stündlich erzwingen", "value": "hourly" }
+          ]
+        },
+        {
+          "type": "Label",
+          "caption": "Seit dem 1.10.2025 rechnet Tibber in Deutschland viertelstündlich ab. „Automatisch“ fragt die feineren 15-Minuten-Preise ab und fällt auf Stundenwerte zurück, falls der Tarif sie nicht liefert. Nur ändern, wenn die automatische Erkennung nicht das gewünschte Ergebnis bringt."
+        },
+        {
           "type": "CheckBox",
           "name": "ArchivePrice",
           "caption": "Preisverlauf archivieren (Grundlage für eine Rechnungsprüfung)"

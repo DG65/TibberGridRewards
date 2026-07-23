@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.3.0
+
+- **Neu: viertelstündliche Preise** (Panel „💶 Preiskurve“ → „Preisauflösung“, Standard „Automatisch“).
+  Tibber rechnet in Deutschland seit dem 1.10.2025 viertelstündlich ab, liefert die 15-Minuten-Preise
+  über die API aber nur auf ausdrückliche Anforderung (`priceInfo(resolution: QUARTER_HOURLY)`). Bisher
+  fragte das Modul ohne diese Angabe ab und bekam dadurch **stündliche** Werte – für viertelstündlich
+  abgerechnete Kunden eine spürbare Ungenauigkeit. An der Live-Anlage gemessen: der Stundenwert ist ein
+  Mittel, der echte Viertelstundenpreis wich im Test um rund 1,3 ct/kWh ab – bei einer Rechnungsprüfung
+  nicht vernachlässigbar.
+  - „Automatisch“ fragt zuerst viertelstündlich ab und fällt auf Stundenwerte zurück, wenn der Tarif
+    keine 15-Minuten-Preise liefert (ältere oder ausländische Tarife). Manuelles Erzwingen beider
+    Auflösungen ist möglich.
+  - Downstream unverändert: Der Vertrag `GetPriceCurve()` trug die Slot-Breite ohnehin über `end-start`,
+    der slotgenaue Preiswechsel (PriceTick) und die Archivierung nehmen 15-Minuten-Slots automatisch mit.
+
 ## 2.2.5
 
 - **Fix: `GetPriceCurve()` konnte bei dauerhaft scheiterndem Abruf die Visualisierung ausbremsen.**

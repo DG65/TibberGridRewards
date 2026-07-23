@@ -333,6 +333,17 @@ Folgetag zeitnah zu übernehmen, sobald Tibber sie veröffentlicht (üblicherwei
 mit deutscher Beschriftung von Tibbers fünf Stufen (sehr günstig … sehr teuer) – zeigen
 den jeweils aktuellen Slot fürs schnelle Nachsehen, ohne die Funktion aufrufen zu müssen.
 
+**Preisauflösung (stündlich / viertelstündlich):** Tibber rechnet in Deutschland seit dem 1.10.2025
+viertelstündlich ab, liefert die 15-Minuten-Preise über die API aber nur auf ausdrückliche
+Anforderung. Die Einstellung „Preisauflösung“ steht standardmäßig auf **Automatisch**: Das Modul
+fragt die feineren Viertelstundenpreise ab und fällt auf Stundenwerte zurück, falls der Tarif keine
+15-Minuten-Preise liefert (ältere oder ausländische Tarife). Das ist keine Kosmetik – der Stundenwert
+ist ein Mittel über die vier Viertelstunden und weicht vom tatsächlich abgerechneten Viertelstundenpreis
+durchaus um über 1 ct/kWh ab. Wer stündlich abgerechnet wird, kann die Auflösung fest auf „Stündlich“
+stellen; nötig ist das aber nicht, „Automatisch“ trifft in beiden Fällen das Richtige. Die Slot-Breite
+liegt im Vertrag `GetPriceCurve()` über `start`/`end` vor – Konsumenten dürfen also **nie** 60 Minuten
+annehmen, sondern lesen die Dauer aus `end − start`.
+
 ### Preisverlauf archivieren (Rechnungsprüfung)
 
 Mit dem Häkchen **„Preisverlauf archivieren“** aktiviert das Modul die Archivierung der Variable
