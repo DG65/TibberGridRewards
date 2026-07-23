@@ -292,6 +292,12 @@
           "name": "Paragraph14aReductionYear",
           "caption": "§14a Modul 1 Reduzierung (€/Jahr)",
           "digits": 2
+        },
+        {
+          "type": "NumberSpinner",
+          "name": "TibberBaseFeeMonth",
+          "caption": "Tibber-Grundgebühr (€/Monat)",
+          "digits": 2
         }
       ]
     },

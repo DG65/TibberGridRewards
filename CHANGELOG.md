@@ -21,6 +21,10 @@
     auf den Nettopreis, und der rekonstruierte `spot` deckt sich über alle Tarifstufen mit Tibbers
     eigenem `tibberEnergy` auf ~0,01 ct/kWh – die unabhängige Bestätigung, dass die Netz-Config stimmt.
     Das Modell trifft Dietmars echte Juni-2026-Rechnung (90,58 € netto) auf 0,0006 ct/kWh genau.
+  - Getter `TIBBERGR_GetTariffConfig()` für die fixen Positionen (Netz-Grundpreis, §14a-Reduzierung –
+    beide auch als /365-Tageswert –, Tibber-Grundgebühr), damit der Konsument (das EMS) die
+    Monats-Endabrechnung über einen stabilen Vertrag liest statt über interne Property-Namen. Neues
+    Formularfeld „Tibber-Grundgebühr (€/Monat)".
 
 ## 2.3.0
 

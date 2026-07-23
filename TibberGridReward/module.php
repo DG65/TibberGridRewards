@@ -150,6 +150,7 @@ class TibberGridReward extends IPSModule
         $this->RegisterPropertyFloat('NetzGrundpreisYear', 98.00);       // €/a
         $this->RegisterPropertyBoolean('Paragraph14aEnabled', true);
         $this->RegisterPropertyFloat('Paragraph14aReductionYear', 119.80); // €/a
+        $this->RegisterPropertyFloat('TibberBaseFeeMonth', 5.03);          // €/Monat (Tibber-Grundgebühr)
 
         $this->RegisterAttributeString('PriceHomes', '');
         // Hash des Tokens, mit dem die Home-Liste geholt wurde – erkennt einen Token-Wechsel.
@@ -1039,6 +1040,33 @@ class TibberGridReward extends IPSModule
         }
         unset($slot);
         return $slots;
+    }
+
+    /**
+     * Öffentlicher Vertrag (Ergänzung zu GetPriceCurve): die FIXEN, NICHT per-kWh anfallenden Positionen
+     * für die Monats-Endabrechnung, die ein Konsument (EMS) mit der gemessenen Slot-Energie zusammenführt.
+     * Bewusst als Getter statt Direktzugriff auf unsere Property-Namen – die bleiben so intern.
+     *
+     * Jahresbeträge zusätzlich als /365-Tageswert (netzGrundpreisDay, paragraph14aReductionDay), weil
+     * mehrere Netz-Positionen im Preisblatt als €/a veröffentlicht und erst auf den Tag heruntergerechnet
+     * werden. Die "Netzentgelt nicht < 0"-Nebenbedingung der §14a-Reduzierung wendet der KONSUMENT an
+     * (sie hängt vom tatsächlichen Netzentgelt des Abrechnungstags ab, das wir hier nicht kennen).
+     * Alle €-Werte brutto? Nein – Grundpreise/Reduzierung wie im Preisblatt (netto); vat separat.
+     */
+    public function GetTariffConfig(): array
+    {
+        return [
+            'active'                    => $this->ReadPropertyBoolean('TariffEnabled'),
+            'vat'                       => self::VAT_PERCENT,
+            'taxStand'                  => self::TAX_STAND,
+            // fixe Positionen (nicht per kWh) für die Monatsrechnung:
+            'netzGrundpreisYear'        => $this->ReadPropertyFloat('NetzGrundpreisYear'),
+            'netzGrundpreisDay'         => round($this->ReadPropertyFloat('NetzGrundpreisYear') / 365, 6),
+            'paragraph14aEnabled'       => $this->ReadPropertyBoolean('Paragraph14aEnabled'),
+            'paragraph14aReductionYear' => $this->ReadPropertyFloat('Paragraph14aReductionYear'),
+            'paragraph14aReductionDay'  => round($this->ReadPropertyFloat('Paragraph14aReductionYear') / 365, 6),
+            'tibberBaseFeeMonth'        => $this->ReadPropertyFloat('TibberBaseFeeMonth'),
+        ];
     }
 
     /**
