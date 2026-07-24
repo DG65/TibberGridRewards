@@ -216,6 +216,19 @@ standalone weiter, deaktivieren die Kopplung und melden das **sichtbar**. Konsta
 - `GetTariffConfig` = **1.1** (1.0 fixe Positionen, 1.1 + `campaigns`) — Top-Level-Feld (Map-Rückgabe).
 - Ein künftiges `GetActiveControls` bringt `contractVersion` = **"1.0"** von Anfang an mit.
 
+### Gemeinsame Variablenprofile `NRG.*` (Verbund-Konvention) — bei uns geprüft, nichts zu migrieren
+
+Physikalische Grundgrößen (`NRG.Watt`/`NRG.kWh`/`NRG.Ampere`/`NRG.Volt`/`NRG.Percent`/`NRG.Celsius`)
+sollen modulübergreifend ein gemeinsames Profil statt je ein eigenes tragen. Geprüft (Stand 2.6.0):
+Unsere einzigen selbst angelegten Profile sind `Tibber.Reward`/`Tibber.RatePerKWh`/`Tibber.PricePerKWh`
+(alle **€ bzw. €/kWh** — Währungswerte, keine der sechs Grundgrößen) und `Tibber.GridRewardMode`
+(Enum/Status — bleibt laut Konvention ohnehin modulspezifisch). Die tatsächlichen Watt-/kWh-Werte
+(`WallboxPowerTotal`, `GridRewardEnergyEvent/Today/Month/Total` u. a.) nutzen bereits IPS' **eigene**
+Systemprofile `~Watt`/`~Electricity` — nicht ein eigenes `Tibber.Watt`. Ein Wechsel auf `NRG.Watt` wäre
+hier ein Rückschritt (schmälert die Kompatibilität mit der gesamten IPS-Welt auf den Verbund). Keine
+Änderung vorgenommen — falls sich das mit neuen Variablen ändert (z. B. eine echte Ampere-/Volt-/
+Celsius-Größe), dann `NRG.*` verwenden, nicht ein neues `Tibber.*`.
+
 ### Zugangsdaten (Verbund-Konvention, seit 2.6.0)
 
 Zwei Geheimnisse im Modul: das Grid-Rewards-App-Passwort und der Personal Access Token der
