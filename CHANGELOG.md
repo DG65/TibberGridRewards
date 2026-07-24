@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.6.0
+
+- **Zugangsdaten-Konvention umgesetzt (Verbund-weite Vorgabe):** Grid-Rewards-App-Passwort und der
+  Personal Access Token der Preiskurve lagen bisher als Property (Formular-Konfiguration) – jetzt
+  dienen die Formularfelder nur noch der EINMALIGEN Eingabe. `ApplyChanges()` übernimmt einen
+  eingetragenen Wert sofort in ein Attribut und leert die Property wieder; dauerhaft gespeichert wird
+  ausschließlich das Attribut, nicht formularsichtbar. Läuft bei jeder Eingabe erneut (keine
+  Einmal-Sperre), sodass auch ein rotierter Token/ein neues Passwort korrekt übernommen wird.
+  - Betrifft `Password` (App-Login) und `PriceApiToken` (offizielle API) gleichermaßen.
+  - Alle internen Lesestellen (Login, Preisabfragen, Statusprüfungen) lesen jetzt über die Attribute,
+    nicht mehr über die Property – sonst hätte die Instanz nach der ersten Übernahme fälschlich
+    „keine Zugangsdaten" gemeldet, weil die Property ja bewusst leer ist.
+  - Kein Verschlüsselungs-Anspruch: IP-Symcon verschlüsselt Attribute nicht at rest, „sicher" heißt
+    hier nur „nicht im Formular/Log/Anzeigetext sichtbar".
+  - Nutzersichtbar: Beide Passwortfelder erscheinen nach dem Übernehmen leer, wenn man das Formular
+    erneut öffnet – das ist gewollt, README entsprechend ergänzt.
+
 ## 2.5.0
 
 - **Vertragsversionierung (Verbund-Konvention, SUITE.md im EMS-Repo):** `GetPriceCurve()` und

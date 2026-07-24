@@ -62,7 +62,13 @@ class TibberGridReward extends IPSModule
 
         $this->RegisterPropertyBoolean('Active', false);
         $this->RegisterPropertyString('Email', '');
+        // Passwort-Property dient NUR der einmaligen Formular-Eingabe (Verbund-Konvention Zugangsdaten):
+        // ApplyChanges() übernimmt einen eingetragenen Wert sofort ins Attribut PasswordSecret und
+        // leert die Property wieder - dauerhaft gespeichert wird nur das Attribut (nicht im Formular
+        // sichtbar). Grund, das Passwort trotzdem dauerhaft zu halten: der App-Login wird für den
+        // JWT-Refresh wiederholt gebraucht, nicht nur einmalig.
         $this->RegisterPropertyString('Password', '');
+        $this->RegisterAttributeString('PasswordSecret', '');
         $this->RegisterPropertyString('Home_ID', '0');
 
         // Wallbox-Wirkleistung aggregieren
@@ -119,7 +125,10 @@ class TibberGridReward extends IPSModule
 
         // Preiskurve über die offizielle Tibber-API (Personal Access Token) – bewusst unabhängig von
         // "Active"/Email/Password: läuft auch, wenn Grid Rewards gar nicht genutzt wird.
+        // Property dient wie bei Password NUR der einmaligen Eingabe, dauerhaft gespeichert wird
+        // ausschließlich das Attribut PriceApiTokenSecret (Verbund-Konvention Zugangsdaten).
         $this->RegisterPropertyString('PriceApiToken', '');
+        $this->RegisterAttributeString('PriceApiTokenSecret', '');
         $this->RegisterPropertyString('PriceHomeID', '0');
         // Preisauflösung: 'auto' (viertelstündlich mit Rückfall auf stündlich), 'quarter', 'hourly'.
         $this->RegisterPropertyString('PriceResolution', 'auto');
@@ -199,6 +208,14 @@ class TibberGridReward extends IPSModule
         // Standard-Darstellung erzwingen (räumt evtl. aus 1.1.0 verbliebenen HTML-SDK-Typ auf)
         $this->SetVisualizationType(0);
 
+        // Zugangsdaten aus dem Formular sofort ins Attribut übernehmen und die Property wieder leeren
+        // (Verbund-Konvention Zugangsdaten: PasswordTextBox dient nur der einmaligen Eingabe, dauerhaft
+        // gespeichert wird nur das - nicht formularsichtbare - Attribut). Läuft bei JEDEM Aufruf, nicht
+        // nur einmalig: greift erneut, sobald der Nutzer ein neues Passwort/Token einträgt.
+        if ($this->MigrateCredentialsToAttributes()) {
+            return;
+        }
+
         // Einmalige Migrationen (lösen bei Bedarf selbst ein erneutes ApplyChanges aus – dann hier
         // abbrechen): zuerst die sehr alten EMS-Felder (bis 1.15.x) nach "Automations", danach das
         // v1.16/1.17-Format nach dem neuen Bedingungs-Regelwerk "DataActions".
@@ -227,7 +244,7 @@ class TibberGridReward extends IPSModule
             return;
         }
 
-        if ($this->ReadPropertyString('Email') === '' || $this->ReadPropertyString('Password') === '') {
+        if ($this->ReadPropertyString('Email') === '' || $this->GetPasswordSecret() === '') {
             $this->SetStatus(201); // keine Zugangsdaten
             return;
         }
@@ -583,7 +600,7 @@ class TibberGridReward extends IPSModule
     {
         $body = json_encode([
             'email'    => $this->ReadPropertyString('Email'),
-            'password' => $this->ReadPropertyString('Password'),
+            'password' => $this->GetPasswordSecret(),
         ]);
 
         $result = $this->HttpPost(self::AUTH_URL, $body, false);
@@ -686,7 +703,7 @@ class TibberGridReward extends IPSModule
         $this->MaintainVariable('CurrentPriceLevel', $this->Translate('Current price level'), VARIABLETYPE_STRING, '', 101, true);
         $this->EnsurePriceArchiving();
 
-        $token = $this->ReadPropertyString('PriceApiToken');
+        $token = $this->GetPriceApiToken();
         if ($token === '') {
             $this->SetTimerInterval('PriceRefresh', 0);
             $this->SetTimerInterval('PriceTick', 0);
@@ -730,7 +747,7 @@ class TibberGridReward extends IPSModule
 
     private function FetchPriceHomes(): void
     {
-        $token = $this->ReadPropertyString('PriceApiToken');
+        $token = $this->GetPriceApiToken();
         if ($token === '') {
             return;
         }
@@ -751,7 +768,7 @@ class TibberGridReward extends IPSModule
     /** Timer-Callback: Preiskurve neu abfragen (alle 20 Minuten, siehe Create()). */
     public function PriceRefresh(): void
     {
-        if ($this->ReadPropertyString('PriceApiToken') === '' || $this->ReadPropertyString('PriceHomeID') === '0') {
+        if ($this->GetPriceApiToken() === '' || $this->ReadPropertyString('PriceHomeID') === '0') {
             return;
         }
         $this->FetchAndCachePriceCurve();
@@ -871,7 +888,7 @@ class TibberGridReward extends IPSModule
      */
     private function FetchAndCachePriceCurve(): bool
     {
-        $token = $this->ReadPropertyString('PriceApiToken');
+        $token = $this->GetPriceApiToken();
         $homeId = $this->ReadPropertyString('PriceHomeID');
         if ($token === '' || $homeId === '0') {
             return false;
@@ -1020,7 +1037,7 @@ class TibberGridReward extends IPSModule
      */
     public function GetPriceCurve(): array
     {
-        if ($this->ReadPropertyString('PriceApiToken') === '' || $this->ReadPropertyString('PriceHomeID') === '0') {
+        if ($this->GetPriceApiToken() === '' || $this->ReadPropertyString('PriceHomeID') === '0') {
             return [];
         }
         $cache = json_decode($this->ReadAttributeString('PriceCache'), true);
@@ -2148,6 +2165,52 @@ class TibberGridReward extends IPSModule
         $rules[$Index]['Active'] = $Active;
         IPS_SetProperty($this->InstanceID, 'DataActions', json_encode($rules));
         IPS_ApplyChanges($this->InstanceID);
+    }
+
+    /**
+     * Übernimmt eingetragene Zugangsdaten aus den (formularsichtbaren) Properties in die
+     * (nicht formularsichtbaren) Attribute und leert die Properties wieder - Verbund-Konvention
+     * Zugangsdaten: PasswordTextBox dient nur der einmaligen Eingabe, dauerhaft gespeichert wird nur
+     * das Attribut. Läuft bei JEDEM ApplyChanges (kein Einmal-Flag): Ist die Property leer, passiert
+     * nichts - erst ein neu eingetragener Wert (Ersteinrichtung oder Rotation) löst die Übernahme aus.
+     *
+     * @return bool true, wenn etwas übernommen wurde (Aufrufer sollte danach return; da ApplyChanges
+     *              erneut angestoßen wird)
+     */
+    private function MigrateCredentialsToAttributes(): bool
+    {
+        $changed = false;
+
+        $password = $this->ReadPropertyString('Password');
+        if ($password !== '') {
+            $this->WriteAttributeString('PasswordSecret', $password);
+            IPS_SetProperty($this->InstanceID, 'Password', '');
+            $changed = true;
+        }
+
+        $token = $this->ReadPropertyString('PriceApiToken');
+        if ($token !== '') {
+            $this->WriteAttributeString('PriceApiTokenSecret', $token);
+            IPS_SetProperty($this->InstanceID, 'PriceApiToken', '');
+            $changed = true;
+        }
+
+        if ($changed) {
+            IPS_ApplyChanges($this->InstanceID);
+        }
+        return $changed;
+    }
+
+    /** Grid-Rewards-App-Passwort (Attribut, nicht Property - siehe MigrateCredentialsToAttributes). */
+    private function GetPasswordSecret(): string
+    {
+        return $this->ReadAttributeString('PasswordSecret');
+    }
+
+    /** Personal Access Token der offiziellen Tibber-API (Attribut, nicht Property). */
+    private function GetPriceApiToken(): string
+    {
+        return $this->ReadAttributeString('PriceApiTokenSecret');
     }
 
     /**

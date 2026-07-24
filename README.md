@@ -104,6 +104,10 @@ WebSocket-Client als Parent wird automatisch erzeugt). Für die Kachel zusätzli
 
 Danach steht der Status auf „Aktiv" und die Variablen werden live aktualisiert.
 
+> **Zum Passwortfeld:** Nach dem Übernehmen erscheint es beim erneuten Öffnen des Formulars leer –
+> das ist gewollt. Der Wert wird dauerhaft nur intern gespeichert, nicht als sichtbarer Formularwert;
+> die Passwortmaske dient nur der einmaligen Eingabe bzw. dem Eintragen eines neuen Passworts.
+
 ## Variablen
 
 | Ident | Typ | Bedeutung |
@@ -358,6 +362,9 @@ Folgetag zeitnah zu übernehmen, sobald Tibber sie veröffentlicht (üblicherwei
 14 Uhr). Die Komfort-Variablen „Aktueller Preis“ (€/kWh) und „Aktuelles Preisniveau (Tibber)“ – Letztere
 mit deutscher Beschriftung von Tibbers fünf Stufen (sehr günstig … sehr teuer) – zeigen
 den jeweils aktuellen Slot fürs schnelle Nachsehen, ohne die Funktion aufrufen zu müssen.
+
+> Auch der Zugangsschlüssel erscheint nach dem Übernehmen beim erneuten Öffnen leer – siehe den
+> Hinweis zum Passwortfeld weiter oben, es gilt hier genauso.
 
 **Preisauflösung (stündlich / viertelstündlich):** Tibber rechnet in Deutschland seit dem 1.10.2025
 viertelstündlich ab, liefert die 15-Minuten-Preise über die API aber nur auf ausdrückliche

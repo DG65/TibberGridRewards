@@ -216,6 +216,30 @@ standalone weiter, deaktivieren die Kopplung und melden das **sichtbar**. Konsta
 - `GetTariffConfig` = **1.1** (1.0 fixe Positionen, 1.1 + `campaigns`) — Top-Level-Feld (Map-Rückgabe).
 - Ein künftiges `GetActiveControls` bringt `contractVersion` = **"1.0"** von Anfang an mit.
 
+### Zugangsdaten (Verbund-Konvention, seit 2.6.0)
+
+Zwei Geheimnisse im Modul: das Grid-Rewards-App-Passwort und der Personal Access Token der
+offiziellen API. Beide folgen derselben Regel:
+
+1. **Property dient NUR der einmaligen Formular-Eingabe** (`PasswordTextBox`). `ApplyChanges()` ruft
+   ganz am Anfang `MigrateCredentialsToAttributes()`: ist die Property nicht leer, wandert der Wert
+   sofort ins Attribut (`PasswordSecret`/`PriceApiTokenSecret`) und die Property wird geleert
+   (`IPS_SetProperty` + `IPS_ApplyChanges`, gleiches Re-Entry-Muster wie die übrigen Migrationen —
+   Aufrufer bricht mit `return;` ab). Kein Einmal-Flag: Trägt der Nutzer später einen neuen Wert ein
+   (Rotation), greift die Übernahme erneut.
+2. **Dauerhaft gespeichert wird ausschließlich das Attribut**, nie die Property — deshalb lesen
+   `Login()` und alle `PriceApiToken`-Nutzstellen über `GetPasswordSecret()`/`GetPriceApiToken()`, NIE
+   über `ReadPropertyString('Password'|'PriceApiToken')`. Die Migrationsmethode selbst ist die einzige
+   bewusste Ausnahme (sie liest ja die frisch eingetragene Property).
+3. **Kein Widerspruch zu „Property nur einmalig"**: Das App-Passwort wird dauerhaft gehalten, weil es
+   für den JWT-Refresh wiederholt gebraucht wird (nicht nur beim ersten Login) — das ist laut
+   Verbund-Konvention zulässig, solange es im Attribut liegt, nicht in der Property.
+4. **Kein Verschlüsselungs-Anspruch**: IP-Symcon verschlüsselt Attribute nicht at rest. „Sicher" heißt
+   hier nur „nicht im Formular/Log/Anzeigetext sichtbar".
+5. Gating-Checks (z. B. Status 201 „keine Zugangsdaten") lesen ebenfalls das Attribut, nicht die
+   Property — sonst zeigt die Instanz nach der ersten erfolgreichen Übernahme fälschlich „keine
+   Zugangsdaten", weil die Property ja bewusst leer ist.
+
 ## Branch-Modell: `beta` ist der aktive Entwicklungszweig
 
 Alle DG65-Modulrepos bekommen einen einheitlichen `beta`-Zweig, damit sich neue Stände ohne
