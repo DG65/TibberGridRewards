@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.7.0
+
+- **Neu: `TIBBERGR_GetActiveControls()`** — meldet, welche Flex-Geräte Tibber GERADE aktiv steuert
+  (Grid-Reward-Delivering), damit das EMS eine externe Fremdsteuerung erkennt und andere Ressourcen
+  umleitet. **Kein Override**: Tibber greift bei Fahrzeug/Speicher außerhalb von IP-Symcon zu (Tesla-
+  API bzw. Hersteller-Kanal), das Modul kann das nur melden, nicht verhindern (Situation B, mit der
+  EMS-Sitzung abgestimmt und in CLAUDE.md dokumentiert).
+  - `type` mit `'vehicle'|'battery'|'charger'`: Das zuerst freigegebene Format kannte nur
+    `'charger'|'vehicle'` — live gegen die echten Flex-Geräte geprüft und zurückgemeldet, dass
+    Tibbers Schema tatsächlich `Vehicle`/`Battery` liefert, kein `Charger`. `'battery'` wurde
+    daraufhin ergänzt (deckt den künftigen GoodWe-Speicher-Fall ab, für den das Feature ursprünglich
+    gedacht war).
+  - `since` wird selbst nachgehalten (Tibbers API liefert nur den Momentanzustand): neue Flanke setzt
+    den Zeitstempel, eine endende Flanke löscht ihn wieder, damit eine spätere erneute Flanke bei
+    „jetzt" beginnt statt einen alten Wert zäh fortzuschreiben. Isoliert gegen vier Fälle geprüft
+    (Beginn, Andauern trotz Grundwechsel, Ende, erneuter Beginn).
+  - `deviceId` liefert bewusst immer `0` — ohne vereinbarte Kreuzreferenz lässt sich Tibbers Geräte-ID
+    nicht zuverlässig einer lokalen Tessie-/GoodweET-Instanz zuordnen; `name`/`make` identifizieren
+    das Gerät menschenlesbar.
+  - `valid` = WebSocket-Verbindung gerade aktiv (Status 102).
+
 ## 2.6.0
 
 - **Zugangsdaten-Konvention umgesetzt (Verbund-weite Vorgabe):** Grid-Rewards-App-Passwort und der

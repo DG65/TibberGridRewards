@@ -75,7 +75,7 @@ auf die Batteriesteuerung selbst; die Statusvariablen (`Delivering`, `GridReward
   IPS-Variable, die das EMS sehen oder überschreiben könnte. **Das EMS hat hier keine
   Override-Möglichkeit und ohne unser Modul nicht einmal eine Benachrichtigung.**
 
-Daraus folgt die genaue Rolle von `GetActiveControls` (noch zu bauen, wartet auf Formatfreigabe):
+Daraus folgt die genaue Rolle von `GetActiveControls` (seit 2.7.0 umgesetzt, EMS-Format final):
 **nicht** um selbst zu steuern oder dem EMS ein Eingreifen zu ermöglichen, sondern damit das EMS
 **nachträglich erkennt**, dass Tibber gerade steuert (`managedBy`-artiges Feld, siehe InverterHubs
 `controlAuthority`), und **andere** Ressourcen umleitet — kein Override, nur Reaktion. „Tibber und
@@ -220,6 +220,38 @@ TIBBERGR_GetPriceCurve(int $id): array
 - Signaturänderungen an `GetPriceCurve()` ankündigen (aktuell konsumiert von EMS); interne Umbauten
   (z. B. Cache-Format) sind frei, solange die Rückgabestruktur stabil bleibt.
 
+## Öffentlicher Vertrag: Aktive Fremdsteuerung (`TIBBERGR_GetActiveControls`, seit 2.7.0)
+
+Erkennungsmechanismus für Situation B (siehe Steuerhoheit oben) — **kein Override**. Rückgabe je
+Flex-Gerät, das GERADE (Momentanzustand, nicht Verlauf) `GridRewardDelivering` ist; leeres Array,
+wenn keins gerade aktiv ist:
+
+```php
+TIBBERGR_GetActiveControls(int $id): array
+// [[ 'contractVersion'=>'1.0', 'type'=>'vehicle'|'battery'|'charger' (charger bislang nie - Tibbers
+//    Schema kennt aktuell nur Vehicle/Battery, offen falls Tibber erweitert),
+//    'deviceId'=>int (IMMER 0, siehe unten), 'name'=>string, 'make'=>string (Tibbers Rohwert),
+//    'managedBy'=>'tibber' (fix), 'reason'=>string (Klartext inkl. Uhrzeit),
+//    'since'=>int (Unix, Beginn der durchgehenden Delivering-Flanke), 'valid'=>bool ], …]
+```
+
+- **`type`-Enum musste nachgebessert werden**: Das zuerst freigegebene Format kannte nur
+  `'charger'|'vehicle'`. Live gegen Dietmars `FlexDevices` geprüft und an EMS zurückgemeldet: Tibbers
+  echtes Schema hat `GridRewardVehicle`/`GridRewardBattery`, kein `GridRewardCharger`. EMS hat
+  daraufhin `'battery'` ergänzt — genau der Fall, der beim GoodWe-Speicher-Rollout real wird.
+- **`since` wird selbst nachgehalten** (Attribut `FlexDeviceSince`, Schlüssel `"vehicle:<id>"`/
+  `"battery:<id>"`): Tibbers API liefert nur den Momentanzustand, kein „seit wann". Gepflegt in
+  `UpdateFlexDeviceSince()`, aufgerufen aus `ProcessGridReward()` bei jedem Status (auch bei
+  `Simulate()`). Neue Flanke → Zeitstempel jetzt; endet die Flanke, wird der Eintrag entfernt, damit
+  eine spätere erneute Flanke wieder bei „jetzt" beginnt statt einen alten Wert fortzuschreiben.
+- **`deviceId` ist bewusst IMMER 0.** Tibbers `vehicleId`/`batteryId` lässt sich ohne vereinbarte
+  Kreuzreferenz nicht zuverlässig einer lokalen Tessie-/GoodweET-Instanz zuordnen — Tessie hat laut
+  eigener Absprache bewusst **keinen** Vertrag dafür (`DG65/Tessie`, „rein konfigurativ"). `name`/
+  `make` identifizieren das Gerät nur menschenlesbar. Eine echte `deviceId`-Auflösung wäre ein
+  separates, mit Tessie/GoodweET abzustimmendes Feature — nicht heimlich raten.
+- **`valid`** = `InstanceStatus === 102` (WS-Verbindung aktiv). Kein separates Politur-Timing, da
+  Grid-Reward-Status ohnehin per Live-Push kommt, nicht gepollt.
+
 ### Vertragsversionierung (Verbund-Konvention, SUITE.md im EMS-Repo)
 
 Getrennt von der Modul-SemVer trägt **jeder** Vertrag ein additives `contractVersion` = "Major.Minor"
@@ -235,7 +267,8 @@ standalone weiter, deaktivieren die Kopplung und melden das **sichtbar**. Konsta
   kanonische SUITE.md-Regel für listen-liefernde Verträge (contractVersion in jedem Eintrag, gleicher
   Wert; kein Umschlag um bestehende Listen) — ebenso bei ChargerHub/HeishaMon/MHUB. Nicht „glattziehen".
 - `GetTariffConfig` = **1.1** (1.0 fixe Positionen, 1.1 + `campaigns`) — Top-Level-Feld (Map-Rückgabe).
-- Ein künftiges `GetActiveControls` bringt `contractVersion` = **"1.0"** von Anfang an mit.
+- `GetActiveControls` (seit 2.7.0) trägt `contractVersion` = **"1.0"** von Anfang an, je Eintrag
+  (Listen-Vertrag, gleiche Regel wie `GetPriceCurve`).
 
 ### Gemeinsame Variablenprofile `NRG.*` (Verbund-Konvention) — bei uns geprüft, nichts zu migrieren
 

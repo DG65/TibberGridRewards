@@ -41,8 +41,9 @@ class TibberGridReward extends IPSModule
 
     // Vertragsversionen "Major.Minor" (Verbund-Konvention, SUITE.md im EMS-Repo). Kompatibilität nur
     // innerhalb derselben Major; Major NUR bei Bruch, Minor bei additiver Erweiterung.
-    private const CONTRACT_PRICECURVE   = '1.1'; // 1.0 Basis-Kurve, 1.1 + components/vat/tibberEnergy/tibberTax
-    private const CONTRACT_TARIFFCONFIG = '1.1'; // 1.0 fixe Positionen, 1.1 + campaigns
+    private const CONTRACT_PRICECURVE     = '1.1'; // 1.0 Basis-Kurve, 1.1 + components/vat/tibberEnergy/tibberTax
+    private const CONTRACT_TARIFFCONFIG   = '1.1'; // 1.0 fixe Positionen, 1.1 + campaigns
+    private const CONTRACT_ACTIVECONTROLS = '1.0';
 
     // Bundesweit gleiche Steuern/Umlagen für die Rechnungsprüfung (ct/kWh netto, Stand Juni 2026).
     // Jährlich zu pflegen; netzgebietsspezifische Größen stehen dagegen im Instanzformular.
@@ -119,6 +120,9 @@ class TibberGridReward extends IPSModule
         $this->RegisterAttributeBoolean('EventActive', false);
         // Letzter ECHTER (nicht simulierter) Status – ermöglicht ein sauberes Beenden der Simulation
         $this->RegisterAttributeString('LastRealStatus', '{}');
+        // Seit-wann-Tracking je Flex-Gerät (Schlüssel "vehicle:<id>"/"battery:<id>") für
+        // GetActiveControls(): Tibbers API liefert nur den Momentanzustand, kein "seit wann"-Feld.
+        $this->RegisterAttributeString('FlexDeviceSince', '{}');
 
         // eindeutige Subscription-ID je Instanz
         $this->RegisterPropertyInteger('SubID', rand(1000, 9999));
@@ -1391,6 +1395,7 @@ class TibberGridReward extends IPSModule
         $devices = $status['flexDevices'] ?? [];
         $this->SetValueIfExists('FlexDeviceCount', count($devices));
         $this->SetValueIfExists('FlexDevices', $this->FormatFlexDevices($devices));
+        $this->UpdateFlexDeviceSince(is_array($devices) ? $devices : []);
 
         // Modus (nutzt Delivering/StateReason + Ladezustand), Event-Flanken, Sollwert + KPI
         $this->SumWallboxes();
@@ -1443,6 +1448,111 @@ class TibberGridReward extends IPSModule
             $lines[] = $line;
         }
         return implode("\n", $lines);
+    }
+
+    /** Eindeutiger Schlüssel eines Flex-Geräts für das Seit-wann-Tracking: "vehicle:<id>"/"battery:<id>". */
+    private function FlexDeviceKey(array $device): string
+    {
+        $type = ($device['__typename'] ?? '') === 'GridRewardBattery' ? 'battery' : 'vehicle';
+        $id = (string) ($device['vehicleId'] ?? $device['batteryId'] ?? '');
+        return $type . ':' . $id;
+    }
+
+    /**
+     * Pflegt den Zeitpunkt, seit dem ein Flex-Gerät durchgehend "Delivering" ist (Tibbers API liefert
+     * nur den Momentanzustand, kein "seit wann"). Neue Flanke (vorher nicht/jetzt aktiv) -> Zeitstempel
+     * jetzt setzen; nicht mehr aktive Geräte werden entfernt, damit eine erneute Flanke wieder bei
+     * "jetzt" beginnt statt einen alten Zeitstempel fortzuschreiben.
+     */
+    private function UpdateFlexDeviceSince(array $devices): void
+    {
+        $sinceMap = json_decode($this->ReadAttributeString('FlexDeviceSince'), true);
+        if (!is_array($sinceMap)) {
+            $sinceMap = [];
+        }
+        $now = time();
+        $activeKeys = [];
+        foreach ($devices as $d) {
+            if (!is_array($d)) {
+                continue;
+            }
+            [, , $delivering] = $this->ParseState($d['state'] ?? []);
+            if (!$delivering) {
+                continue;
+            }
+            $key = $this->FlexDeviceKey($d);
+            $activeKeys[] = $key;
+            if (!isset($sinceMap[$key])) {
+                $sinceMap[$key] = $now;
+            }
+        }
+        foreach (array_keys($sinceMap) as $key) {
+            if (!in_array($key, $activeKeys, true)) {
+                unset($sinceMap[$key]);
+            }
+        }
+        $this->WriteAttributeString('FlexDeviceSince', json_encode($sinceMap));
+    }
+
+    /**
+     * Öffentlicher Vertrag (EMS-abgestimmt, 24.07.2026): meldet, welche Flex-Geräte Tibber GERADE
+     * aktiv steuert - Grundlage dafür, dass das EMS eine externe Fremdsteuerung erkennt und andere
+     * Ressourcen umleitet. KEIN Override-Mechanismus: Tibber steuert bei Fahrzeug/Speicher über die
+     * Tesla-API bzw. den Hersteller-Kanal, komplett außerhalb des EMS - dieses Modul kann nur melden,
+     * nicht eingreifen (siehe CLAUDE.md, Abschnitt Steuerhoheit).
+     *
+     * Rückgabe je aktuell aktivem Gerät (leer, wenn keins gerade liefert): ['contractVersion'=>'1.0',
+     * 'type'=>'vehicle'|'battery'|'charger' (Letzteres bislang nie, Tibbers Schema kennt aktuell nur
+     * die ersten beiden), 'deviceId'=>int (0 - lokale Instanz-Zuordnung noch nicht auflösbar, siehe
+     * unten), 'name'=>string, 'make'=>string (Tibbers Rohwert, unverändert), 'managedBy'=>'tibber'
+     * (fix), 'reason'=>string (Klartext inkl. Uhrzeit), 'since'=>int (Unix, erste durchgehende
+     * Delivering-Flanke), 'valid'=>bool (Verbindung gerade aktiv/frisch)].
+     *
+     * 'deviceId' ist bewusst IMMER 0: Tibbers vehicleId/batteryId lässt sich ohne eine vereinbarte
+     * Kreuzreferenz nicht zuverlässig einer lokalen Tessie-/GoodweET-Instanz zuordnen (Tessie hat laut
+     * CLAUDE.md-Absprache bewusst keinen eigenen Vertrag dafür). 'name'/'make' identifizieren das
+     * Gerät menschenlesbar; eine echte deviceId wäre ein separates, abzustimmendes Feature.
+     */
+    public function GetActiveControls(): array
+    {
+        $status = json_decode($this->ReadAttributeString('LastRealStatus'), true);
+        $devices = is_array($status['flexDevices'] ?? null) ? $status['flexDevices'] : [];
+        $sinceMap = json_decode($this->ReadAttributeString('FlexDeviceSince'), true);
+        if (!is_array($sinceMap)) {
+            $sinceMap = [];
+        }
+        $valid = ((int) (@IPS_GetInstance($this->InstanceID)['InstanceStatus'] ?? 0)) === 102;
+
+        $out = [];
+        foreach ($devices as $d) {
+            if (!is_array($d)) {
+                continue;
+            }
+            [, $rawReason, $delivering] = $this->ParseState($d['state'] ?? []);
+            if (!$delivering) {
+                continue; // nur GERADE aktive Eingriffe, kein Verlauf
+            }
+            $key = $this->FlexDeviceKey($d);
+            $since = (int) ($sinceMap[$key] ?? time());
+            $reasonText = 'Grid Reward aktiv';
+            if ($rawReason !== '') {
+                $reasonText .= ' (' . $rawReason . ')';
+            }
+            $reasonText .= ' seit ' . date('H:i', $since);
+
+            $out[] = [
+                'contractVersion' => self::CONTRACT_ACTIVECONTROLS,
+                'type'            => ($d['__typename'] ?? '') === 'GridRewardBattery' ? 'battery' : 'vehicle',
+                'deviceId'        => 0,
+                'name'            => (string) ($d['shortName'] ?? ($d['make'] ?? '?')),
+                'make'            => (string) ($d['make'] ?? ''),
+                'managedBy'       => 'tibber',
+                'reason'          => $reasonText,
+                'since'           => $since,
+                'valid'           => $valid,
+            ];
+        }
+        return $out;
     }
 
     // ---------------------------------------------------------------------

@@ -27,6 +27,7 @@ eigene Automationen auslösen lassen.
 - [Wallbox-Leistung & EMS-Übergabe](#wallbox-leistung--ems-übergabe)
 - [Preiskurve für preisgetriebene Automationen](#preiskurve-für-preisgetriebene-automationen)
 - [Anwendungsbeispiel: Speicher & Wallbox steuern](#anwendungsbeispiel-speicher--wallbox-steuern)
+- [Erkennen, wenn Tibber selbst steuert](#erkennen-wenn-tibber-selbst-dein-fahrzeugdeinen-speicher-steuert)
 - [FAQ](#faq)
 - [Fehlersuche](#fehlersuche)
 - [Technische Details](#technische-details)
@@ -435,6 +436,33 @@ Signal – die Geräteansteuerung bleibt in deiner Hand.
 > **Richtung prüfen:** Ob ein Einsatz „aus dem Netz laden" (Überschuss) oder „ins Netz entladen"
 > (Knappheit) bedeutet, steht im Detail in `StateReason`. Beobachte diese Variable bei den ersten
 > echten Einsätzen, bevor du die Steuerlogik endgültig festlegst.
+
+### Erkennen, wenn Tibber selbst dein Fahrzeug/deinen Speicher steuert
+
+Registriert Tibber irgendwann ein Fahrzeug oder einen Heimspeicher direkt als Flex-Gerät (z. B. über
+eine künftige Speicher-Kooperation), greift Tibber **außerhalb** von IP-Symcon auf das Gerät zu –
+dein EMS bekommt davon sonst nichts mit. `TIBBERGR_GetActiveControls()` schließt genau diese Lücke:
+
+```php
+TIBBERGR_GetActiveControls(int $InstanzID): array
+// Leer, wenn Tibber gerade kein Gerät steuert. Sonst je Gerät:
+// [[ 'contractVersion' => '1.0',
+//    'type'       => 'vehicle' | 'battery' | 'charger', // aktuell nur die ersten beiden möglich
+//    'deviceId'   => int,     // IMMER 0 – siehe unten
+//    'name'       => string,  // Anzeigename bei Tibber
+//    'make'       => string,  // Hersteller, Tibbers Rohwert
+//    'managedBy'  => 'tibber',
+//    'reason'     => string,  // Klartext, z. B. "Grid Reward aktiv (excess) seit 14:32"
+//    'since'      => int,     // Unix-Zeitstempel, seit wann durchgehend aktiv
+//    'valid'      => bool,    // WebSocket-Verbindung gerade aktiv?
+// ], …]
+```
+
+Das ist **kein Steuerbefehl und kein Override** – dieses Modul kann Tibbers Zugriff nicht verhindern,
+nur melden, dass er gerade stattfindet, damit eine übergeordnete Steuerung (dein EMS) andere
+Ressourcen umleiten kann, statt gegen Tibber zu arbeiten. `deviceId` liefert bewusst immer `0`: Ohne
+eine vereinbarte Kreuzreferenz lässt sich Tibbers interne Geräte-ID nicht zuverlässig einer lokalen
+Fahrzeug-/Speicher-Instanz zuordnen – `name`/`make` sind zur Identifikation gedacht.
 
 ## FAQ
 
