@@ -67,6 +67,27 @@ eine Tibber-Regel eine Ladevorgabe schreibt — zwei Regler auf derselben Batter
 auf die Batteriesteuerung selbst; die Statusvariablen (`Delivering`, `GridRewardMode`,
 `GridRewardWallboxRequest`) sind der vorgesehene Weg, über den das EMS die Signale konsumiert.
 
+**Präzisierung (EMS, 24.07.2026) — zwei grundverschiedene Situationen:**
+- **Situation A** (das EMS selbst besitzt den Schreibkanal — eigene Optimierung, §14a, Komfort,
+  Direktvermarktung): echte interne Prioritätsordnung, das EMS kann aktiv steuern/übersteuern.
+- **Situation B** (unser Fall): Ein externer Akteur besitzt den Schreibkanal **komplett außerhalb**
+  des EMS — Tibber steuert direkt über die go-e-Cloud bzw. die Tesla-API, nicht über eine
+  IPS-Variable, die das EMS sehen oder überschreiben könnte. **Das EMS hat hier keine
+  Override-Möglichkeit und ohne unser Modul nicht einmal eine Benachrichtigung.**
+
+Daraus folgt die genaue Rolle von `GetActiveControls` (noch zu bauen, wartet auf Formatfreigabe):
+**nicht** um selbst zu steuern oder dem EMS ein Eingreifen zu ermöglichen, sondern damit das EMS
+**nachträglich erkennt**, dass Tibber gerade steuert (`managedBy`-artiges Feld, siehe InverterHubs
+`controlAuthority`), und **andere** Ressourcen umleitet — kein Override, nur Reaktion. „Tibber und
+go-e wissen nichts von der Steuerung dahinter" ist dabei ausdrücklich bestätigt, nicht nur unsere
+eigene Vermutung.
+
+**Verbund-Prinzip (ebenfalls 24.07.2026):** Kein Abfangen/Nachahmen von Hersteller-Protokollen
+(MITM/Impersonation gegenüber Tibber/go-e/Tesla), auch nicht zur besseren Erkennung — ausdrücklich
+erwogen und verworfen, weil es sich nicht auf andere NRG-Stack-Nutzer verallgemeinern ließe. Wir
+bauen nur gegen die offiziellen, dokumentierten APIs (App-API für Grid Rewards, offizielle API für
+die Preiskurve).
+
 ### Zusammenarbeit der Sitzungen
 
 Die Sitzungen **teilen kein Gedächtnis**. Was einer gesagt wird, wissen die anderen nicht — der
