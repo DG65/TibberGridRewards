@@ -503,4 +503,6 @@ Vorankündigung ändern kann. Es steht in keiner Verbindung zu Tibber. Nutzung a
 
 ## Lizenz
 
-[MIT](LICENSE) © 2026 Dietmar Gureth
+[PolyForm Noncommercial License 1.0.0](LICENSE) © 2026 Dietmar Gureth (DG65) — Teil des **NRG-Stack**.
+Private und nicht-kommerzielle Nutzung ist frei; **gewerbliche Nutzung erfordert eine gesonderte
+Lizenz** (Kontakt: DG65). Ältere Versionen, die unter MIT veröffentlicht wurden, bleiben MIT.
