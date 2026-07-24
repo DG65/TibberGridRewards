@@ -2661,6 +2661,37 @@ class TibberGridReward extends IPSModule
     }
 
     // ---------------------------------------------------------------------
+    // TEMPORÄRER DEBUG-ENDPUNKT - NICHT TEIL DES VERTRAGS, WIRD NACH DER UNTERSUCHUNG WIEDER ENTFERNT
+    //
+    // Einmalig auf ausdrücklichen Wunsch von Dietmar (24.07.2026, über die EMS-Sitzung angefragt und
+    // in dieser Sitzung direkt bestätigt) angelegt: Klärt per GraphQL-Introspektion der App-API, ob es
+    // Felder/Mutationen für Abfahrtszeit/Ziel-SoC von Tibbers eigenem Smart Charging gibt. Läuft mit
+    // demselben Login wie Login()/EnsureToken() - kein neuer Zugangsweg, keine neuen Zugangsdaten.
+    // ---------------------------------------------------------------------
+
+    /**
+     * Führt eine beliebige, aber auf "query" (nicht "mutation") beschränkte GraphQL-Anfrage gegen die
+     * App-API aus - damit sich das Schema iterativ untersuchen lässt, ohne für jeden Zwischenschritt
+     * neu deployen zu müssen. Bewusst read-only erzwungen: dient nur der Erkundung, nicht dem
+     * produktiven Betrieb, und soll nichts am echten Tibber-Konto verändern können.
+     */
+    public function DebugAppApiQuery(string $Query): string
+    {
+        // Wortgrenzen-Regex, NICHT stripos: eine reine Teilstring-Suche nach "mutation" würde auch
+        // das harmlose Introspektions-Feld "mutationType" fälschlich blockieren (genau die Query, die
+        // dieser Endpunkt eigentlich beantworten soll) - "mutation" als eigenständiges Wort dagegen
+        // erkennt zuverlässig eine echte GraphQL-Mutationsoperation ("mutation { ... }"/"mutation Name(...) { ... }").
+        if (preg_match('/\bmutation\b/i', $Query) === 1) {
+            return json_encode(['error' => 'Debug-Endpunkt lässt nur "query"-Operationen zu, keine Mutationen.']);
+        }
+        if (!$this->EnsureToken()) {
+            return json_encode(['error' => 'Kein gültiger Login-Token verfügbar.']);
+        }
+        $result = $this->HttpPost(self::GQL_URL, json_encode(['query' => $Query]), true);
+        return json_encode($result);
+    }
+
+    // ---------------------------------------------------------------------
     // HTTP-Helfer
     // ---------------------------------------------------------------------
 

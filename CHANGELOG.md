@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.7.1
+
+- **TEMPORÄR (wird nach Abschluss der Untersuchung wieder entfernt):** Debug-Endpunkt
+  `TIBBERGR_DebugAppApiQuery(string $Query)` – auf ausdrücklichen Wunsch von Dietmar (24.07.2026, über
+  die EMS-Sitzung angefragt und direkt bestätigt), um per GraphQL-Introspektion der App-API zu klären,
+  ob es Felder/Mutationen für Abfahrtszeit/Ziel-SoC von Tibbers eigenem Smart Charging gibt. Nutzt
+  denselben Login wie `Login()`/`EnsureToken()` – kein neuer Zugangsweg. Auf `query`-Operationen
+  beschränkt (Wortgrenzen-Regex `\bmutation\b`, nicht `stripos`, damit die eigentlich benötigte
+  Introspektions-Query `mutationType` nicht fälschlich mitblockiert wird – isoliert an 5 Fällen
+  geprüft). Kein Teil des Verbund-Vertrags, kein dauerhaftes Feature.
+
 ## 2.7.0
 
 - **Neu: `TIBBERGR_GetActiveControls()`** — meldet, welche Flex-Geräte Tibber GERADE aktiv steuert
